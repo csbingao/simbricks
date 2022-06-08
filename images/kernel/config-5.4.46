@@ -1347,7 +1347,7 @@ CONFIG_IXGBE=m
 # CONFIG_IXGBEVF is not set
 CONFIG_I40E=m
 # CONFIG_I40EVF is not set
-# CONFIG_ICE is not set
+CONFIG_ICE=m
 # CONFIG_FM10K is not set
 # CONFIG_IGC is not set
 # CONFIG_JME is not set
