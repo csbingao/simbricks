@@ -41,7 +41,7 @@ extern "C" {
 #include <simbricks/proto/base.h>
 }
 
-//#define DEBUG_NICBM 1
+// #define DEBUG_NICBM 1
 #define STAT_NICBM 1
 #define DMA_MAX_PENDING 64
 
@@ -271,6 +271,7 @@ void Runner::H2DRead(volatile struct SimbricksProtoPcieH2DRead *read) {
   memcpy(&dbg_val, (const void *)rc->data, read->len <= 8 ? read->len : 8);
   printf("nicbm: read(off=0x%lx, len=%u, val=0x%lx)\n", read->offset, read->len,
          dbg_val);
+  printf("nicbm: read the reg id: %lx\n, bar: %d", read->req_id, read->bar);
 #endif
 
   // WMB();
@@ -290,6 +291,7 @@ void Runner::H2DWrite(volatile struct SimbricksProtoPcieH2DWrite *write) {
   memcpy(&dbg_val, (const void *)write->data, write->len <= 8 ? write->len : 8);
   printf("nicbm: write(off=0x%lx, len=%u, val=0x%lx)\n", write->offset,
          write->len, dbg_val);
+  printf("nicbm: write the reg id: %lx\n, bar: %d", write->req_id, write->bar);
 #endif
   dev_.RegWrite(write->bar, write->offset, (void *)write->data, write->len);
   wc->req_id = write->req_id;

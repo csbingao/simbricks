@@ -17,11 +17,27 @@ typedef uint16_t __le16;
 typedef uint32_t __le32;
 typedef uint64_t __le64;
 
-#include "sims/nic/i40e_bm/base/i40e_adminq_cmd.h"
-#include "sims/nic/i40e_bm/base/i40e_devids.h"
-#include "sims/nic/i40e_bm/base/i40e_register.h"
-#include "sims/nic/i40e_bm/base/i40e_rxtxq.h"
+#define __AC(X,Y)	(X##Y)
+#define _AC(X,Y)	__AC(X,Y)
+
+#define UL(x)		(_AC(x, UL))
+#define ULL(x)		(_AC(x, ULL))
+#define BIT(nr)			(UL(1) << (nr))
+#define BIT_ULL(nr)		(ULL(1) << (nr))
+
+#define ETH_ALEN	6		/* Octets in one ethernet addr	 */
+#define MBX_PF_VT_PFALLOC	0x00231E80
+
+
+#include "sims/nic/e810_bm/base/i40e_adminq_cmd.h"
+#include "sims/nic/e810_bm/base/i40e_devids.h"
+#include "sims/nic/e810_bm/base/i40e_register.h"
+#include "sims/nic/e810_bm/base/i40e_rxtxq.h"
 #include "sims/nic/e810_bm/base/ice_devids.h"
+// #include "sims/nic/e810_bm/base/ice_type.h"
+#include "sims/nic/e810_bm/base/ice_hw_autogen.h"
+#include "sims/nic/e810_bm/base/ice_adminq_cmd.h"
+
 
 /* from i40e_types.h */
 

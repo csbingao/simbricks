@@ -22,7 +22,7 @@
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "sims/nic/i40e_bm/i40e_bm.h"
+#include "sims/nic/e810_bm/i40e_bm.h"
 
 namespace i40e {
 

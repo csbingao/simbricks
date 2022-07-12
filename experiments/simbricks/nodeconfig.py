@@ -122,11 +122,21 @@ class LinuxNode(NodeConfig):
 
     def prepare_post_cp(self):
         l = []
+        l.append("mkdir -p /sys/kernel/debug")
+        l.append("mount -t debugfs none /sys/kernel/debug")
+        l.append("ls -al /sys/kernel/debug")
+        # l.append("cat /boot/config-$(uname -r)")
         for d in self.drivers:
             if d[0] == '/':
                 l.append('insmod ' + d)
             else:
-                l.append('modprobe ' + d)
+                if d == 'ice':
+                    l.append('modprobe ' + d )
+                    # l.append('modprobe ' + d + ' dyndbg==pmf ')
+                else:
+                    l.append('modprobe ' + d)
+        
+        # l.append("ls -al /lib/firmware/intel/ice/ddp/ice.pkg ")
         l.append('ip link set dev ' + self.ifname + ' up')
         l.append('ip addr add %s/%d dev %s' %
                 (self.ip, self.prefix, self.ifname))

@@ -50,9 +50,10 @@ kheader_tar := $(d)kheaders.tar.bz2
 mqnic_dir := $(d)mqnic
 mqnic_mod := $(mqnic_dir)/mqnic.ko
 m5_bin := $(d)m5
+ice_pkg := $(d)ice.pkg
 guest_init := $(d)/scripts/guestinit.sh
 
-build-images: $(IMAGES) $(RAW_IMAGES) $(vmlinux) $(bz_image) $(mqnic_mod)
+build-images: $(vmlinux) $(bz_image) $(mqnic_mod)
 
 build-images-min: $(IMAGES_MIN) $(RAW_IMAGES_MIN) $(vmlinux) $(bz_image) \
     $(mqnic_mod)
@@ -69,7 +70,7 @@ $(BASE_IMAGE): $(packer) $(QEMU) $(bz_image) $(m5_bin) $(kheader_tar) \
       scripts/cleanup.sh)
 	rm -rf $(dir $@)
 	mkdir -p $(img_dir)/input-base
-	cp $(m5_bin) $(kheader_tar) $(guest_init) $(bz_image) $(kernel_config) \
+	cp $(m5_bin) $(kheader_tar) $(guest_init) $(bz_image) $(kernel_config) $(ice_pkg) \
 	    $(img_dir)/input-base/
 	cd $(img_dir) && ./packer-wrap.sh base base base.pkr.hcl
 	rm -rf $(img_dir)/input-base
@@ -115,7 +116,8 @@ $(packer):
 ################################################
 # Kernel
 
-$(kernel_dir)/vmlinux: $(kernel_dir)/.config
+$(kernel_dir)/vmlinux: $(kernel_dir)/.config $(kernel_dir)/drivers/net/ethernet/intel/ice/ice_common.c \
+	$(kernel_dir)/drivers/net/ethernet/intel/ice/ice_sched.c
 	$(MAKE) -C $(kernel_dir)
 	touch $@
 
@@ -154,10 +156,10 @@ $(kheader_tar): $(kernel_dir)/vmlinux
 	cd $(kheader_dir) && tar cjf $(abspath $@) .
 
 $(kernel_dir)/.config: $(kernel_pardir)/config-$(KERNEL_VERSION)
-	rm -rf $(kernel_dir)
-	wget -O - https://cdn.kernel.org/pub/linux/kernel/v5.x/linux-$(KERNEL_VERSION).tar.xz | \
-	    tar xJf - -C $(kernel_pardir)
-	cd $(kernel_dir) && patch -p1 < ../linux-$(KERNEL_VERSION)-timers-gem5.patch
+	# rm -rf $(kernel_dir)
+	# wget -O - https://cdn.kernel.org/pub/linux/kernel/v5.x/linux-$(KERNEL_VERSION).tar.xz | \
+	#     tar xJf - -C $(kernel_pardir)
+	# cd $(kernel_dir) && patch -p1 < ../linux-$(KERNEL_VERSION)-timers-gem5.patch
 	cp $< $@
 
 ################################################

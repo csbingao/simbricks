@@ -202,7 +202,7 @@ class NetSim(Simulator):
 class QemuHost(HostSim):
     sync = False
     cpu_freq = '4GHz'
-
+    debug = False
     def __init__(self):
         super().__init__()
 
@@ -245,8 +245,10 @@ class QemuHost(HostSim):
 
             cmd += f' -cpu Skylake-Server -icount shift={shift},sleep=off '
         else:
-            cmd += ' -cpu host -enable-kvm '
-
+            if self.debug:
+                cmd += ' -s -S  '
+            else:
+                cmd += ' -cpu host -enable-kvm '
         di = 0
         for dev in self.pcidevs:
             cmd += f'-chardev socket,path={env.dev_pci_path(dev)},'
@@ -433,7 +435,7 @@ class WireNet(NetSim):
         super().__init__()
 
     def run_cmd(self, env):
-        connects = self.connect_sockets()
+        connects = self.connect_sockets(env)
         assert len(connects) == 2
         cmd = '%s/sims/net/wire/net_wire %s %s %d %d %d' % \
                 (env.repodir, connects[0][1],

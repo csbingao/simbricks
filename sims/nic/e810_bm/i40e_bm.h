@@ -33,12 +33,13 @@ extern "C" {
 #include <simbricks/proto/pcie.h>
 }
 #include <simbricks/nicbm/nicbm.h>
+#include "sims/nic/e810_bm/i40e_base_wrapper.h"
 
-// #define DEBUG_DEV
-// #define DEBUG_ADMINQ
-// #define DEBUG_LAN
-// #define DEBUG_HMC
-// #define DEBUG_QUEUES
+#define DEBUG_DEV
+#define DEBUG_ADMINQ
+#define DEBUG_LAN
+#define DEBUG_HMC
+#define DEBUG_QUEUES
 
 struct i40e_aq_desc;
 struct i40e_tx_desc;
@@ -258,7 +259,9 @@ class queue_admin_tx : public queue_base {
     queue_admin_tx &aq;
     i40e_bm &dev;
     struct i40e_aq_desc *d;
-
+    struct ice_aq_desc *ice_d;
+    
+    
     virtual void data_written(uint64_t addr, size_t len);
 
     // prepare completion descriptor (fills flags, and return value)
@@ -276,7 +279,7 @@ class queue_admin_tx : public queue_base {
     virtual void prepare();
     virtual void process();
   };
-
+  
   uint64_t &reg_base;
   uint32_t &reg_len;
 
@@ -503,15 +506,18 @@ class i40e_bm : public nicbm::Runner::Device {
   friend class lan_queue_tx;
   friend class shadow_ram;
 
+  
+
   static const unsigned BAR_REGS = 0;
   static const unsigned BAR_IO = 2;
   static const unsigned BAR_MSIX = 3;
 
   static const uint32_t NUM_QUEUES = 1536;
-  static const uint32_t NUM_PFINTS = 128;
-  static const uint32_t NUM_VSIS = 384;
+  static const uint32_t NUM_PFINTS = 2048;
+  static const uint32_t NUM_VSIS = 383;
   static const uint16_t MAX_MTU = 2048;
   static const uint8_t NUM_ITR = 3;
+  static const uint32_t NUM_RXDID = 64;
 
   struct i40e_regs {
     uint32_t glgen_rstctl;
@@ -520,7 +526,7 @@ class i40e_bm : public nicbm::Runner::Device {
     uint32_t pfint_lnklst0;
     uint32_t pfint_icr0_ena;
     uint32_t pfint_icr0;
-    uint32_t pfint_itr0[NUM_ITR];
+    // uint32_t pfint_itr0[NUM_ITR];
     uint32_t pfint_itrn[NUM_ITR][NUM_PFINTS];
 
     uint32_t pfint_stat_ctl0;
@@ -533,11 +539,11 @@ class i40e_bm : public nicbm::Runner::Device {
     uint32_t glnvm_srctl;
     uint32_t glnvm_srdata;
 
-    uint32_t qint_tqctl[NUM_QUEUES];
+    uint32_t qint_tqctl[2048];
     uint32_t qtx_ena[NUM_QUEUES];
     uint32_t qtx_tail[NUM_QUEUES];
     uint32_t qtx_ctl[NUM_QUEUES];
-    uint32_t qint_rqctl[NUM_QUEUES];
+    uint32_t qint_rqctl[2048];
     uint32_t qrx_ena[NUM_QUEUES];
     uint32_t qrx_tail[NUM_QUEUES];
 
@@ -563,6 +569,18 @@ class i40e_bm : public nicbm::Runner::Device {
     uint32_t pf_arqh;
     uint32_t pf_arqt;
 
+    uint64_t pf_mbx_atqba;
+    uint32_t pf_mbx_atqlen;
+    uint32_t pf_mbx_atqh;
+    uint32_t pf_mbx_atqt;
+
+    uint64_t pf_mbx_arqba;
+    uint32_t pf_mbx_arqlen;
+    uint32_t pf_mbx_arqh;
+    uint32_t pf_mbx_arqt;
+
+    uint32_t pf_mbx_vt_pfalloc;
+ 
     uint32_t pfqf_ctl_0;
 
     uint32_t pfqf_hkey[13];
@@ -577,6 +595,86 @@ class i40e_bm : public nicbm::Runner::Device {
     uint32_t glrpb_glw;
     uint32_t glrpb_phw;
     uint32_t glrpb_plw;
+
+    uint32_t glint_ctl;
+    uint32_t flex_rxdid_0[NUM_RXDID];
+    uint32_t flex_rxdid_1[NUM_RXDID];
+    uint32_t flex_rxdid_2[NUM_RXDID];
+    uint32_t flex_rxdid_3[NUM_RXDID];
+    uint32_t QRX_CTRL[2048];
+    uint32_t QRX_CONTEXT0[2048];
+    uint32_t QRX_CONTEXT1[2048];
+    uint32_t QRX_CONTEXT2[2048];
+    uint32_t QRX_CONTEXT3[2048];
+    uint32_t QRX_CONTEXT4[2048];
+    uint32_t QRX_CONTEXT5[2048];
+    uint32_t QRX_CONTEXT6[2048];
+    uint32_t QRX_CONTEXT7[2048];
+    uint32_t QRXFLXP_CNTXT[2048];
+    uint32_t qtx_comm_head[16384];
+
+    uint32_t GLINT_ITR0[2048];
+    uint32_t GLINT_ITR1[2048];
+    uint32_t GLINT_ITR2[2048];
+
+    uint32_t GLPRT_BPRCL[8];
+    uint32_t GLPRT_BPTCL[8];
+    uint32_t GLPRT_CRCERRS[8];
+    uint32_t GLPRT_GORCL[8];
+    uint32_t GLPRT_GOTCL[8];
+    uint32_t GLPRT_ILLERRC[8];
+    uint32_t GLPRT_LXOFFRXC[8];
+    uint32_t GLPRT_LXOFFTXC[8];
+    uint32_t GLPRT_LXONRXC[8];
+    uint32_t GLPRT_LXONTXC[8];
+    uint32_t GLPRT_MLFC[8];
+    uint32_t GLPRT_MPRCL[8];
+    uint32_t GLPRT_MPTCL[8];
+    uint32_t GLPRT_MRFC[8];
+    uint32_t GLPRT_PRC1023L[8];
+    uint32_t GLPRT_PRC127L[8];
+    uint32_t GLPRT_PRC1522L[8];
+    uint32_t GLPRT_PRC255L[8];
+    uint32_t GLPRT_PRC511L[8];
+    uint32_t GLPRT_PRC64L[8];
+    uint32_t GLPRT_PRC9522L[8];
+    uint32_t GLPRT_PTC1023L[8];
+    uint32_t GLPRT_PTC127L[8];
+    uint32_t GLPRT_PTC1522L[8];
+    uint32_t GLPRT_PTC255L[8];
+    uint32_t GLPRT_PTC511L[8];
+    uint32_t GLPRT_PTC64L[8];
+    uint32_t GLPRT_PTC9522L[8];
+    // uint32_t GLPRT_PXOFFRXC[8];
+    // uint32_t GLPRT_PXOFFTXC[8];
+    // uint32_t GLPRT_PXONRXC[8];
+    // uint32_t GLPRT_PXONTXC[8];
+    uint32_t GLPRT_RFC[8];
+    uint32_t GLPRT_RJC[8];
+    uint32_t GLPRT_RLEC[8];
+    uint32_t GLPRT_ROC[8];
+    uint32_t GLPRT_RUC[8];
+    // uint32_t GLPRT_RXON2OFFCNT
+    uint32_t GLPRT_TDOLD[8];
+    uint32_t GLPRT_UPRCL[8];
+    uint32_t GLPRT_UPTCL[8];
+    uint32_t GLV_BPRCL[8];
+    uint32_t GLV_BPTCL[8];
+    uint32_t GLV_GORCL[768];
+    uint32_t GLV_GOTCL[768];
+    uint32_t GLV_MPRCL[768];
+    uint32_t GLV_MPTCL[768];
+    uint32_t GLV_RDPC[768];
+    uint32_t GLV_TEPC[768];
+    uint32_t GLV_UPRCL[768];
+    uint32_t GLV_UPTCL[768];
+
+    uint32_t QTX_COMM_DBELL[16384];
+    // uint32_t glprt_bptcl[8];
+    // uint32_t glprt_crcerrs[8];
+    // uint32_t glprt_gorcl[8];
+    // uint32_t glprt_illerrc[8];
+    // uint32_t glprt_bprc[8];
   };
 
  public:
@@ -599,10 +697,12 @@ class i40e_bm : public nicbm::Runner::Device {
   logger log;
   i40e_regs regs;
   queue_admin_tx pf_atq;
+  queue_admin_tx pf_mbx_atq;
   host_mem_cache hmc;
   shadow_ram shram;
   lan lanmgr;
 
+  struct ice_aqc_get_topo_elem topo_elem;
   int_ev intevs[NUM_PFINTS];
 
   /** Read from the I/O bar */

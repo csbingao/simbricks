@@ -29,8 +29,8 @@
 #include <cassert>
 #include <iostream>
 
-#include "sims/nic/i40e_bm/i40e_base_wrapper.h"
-#include "sims/nic/i40e_bm/i40e_bm.h"
+#include "sims/nic/e810_bm/i40e_base_wrapper.h"
+#include "sims/nic/e810_bm/i40e_bm.h"
 
 namespace i40e {
 
@@ -56,6 +56,7 @@ queue_base::queue_base(const std::string &qname_, uint32_t &reg_head_,
 void queue_base::ctxs_init() {
   for (size_t i = 0; i < MAX_ACTIVE_DESCS; i++) {
     desc_ctxs[i] = &desc_ctx_create();
+    // std::cout<<"Did I create the ctx1?"<<std::endl;
   }
 }
 
@@ -76,7 +77,7 @@ void queue_base::trigger_fetch() {
     fetch_cnt = len - next_idx;
 
 #ifdef DEBUG_QUEUES
-  log << "fetching avail=" << desc_avail << " cnt=" << fetch_cnt
+  std::cout << "fetching avail=" << desc_avail << " cnt=" << fetch_cnt
       << " idx=" << next_idx << logger::endl;
 #endif
 
@@ -88,6 +89,7 @@ void queue_base::trigger_fetch() {
   uint32_t first_pos = (active_first_pos + active_cnt) % MAX_ACTIVE_DESCS;
   for (uint32_t i = 0; i < fetch_cnt; i++) {
     desc_ctx &ctx = *desc_ctxs[(first_pos + i) % MAX_ACTIVE_DESCS];
+    
     assert(ctx.state == desc_ctx::DESC_EMPTY);
 
     ctx.state = desc_ctx::DESC_FETCHING;
@@ -101,7 +103,7 @@ void queue_base::trigger_fetch() {
   dma->dma_addr_ = base + next_idx * desc_len;
   dma->pos = first_pos;
 #ifdef DEBUG_QUEUES
-  log << "    dma = " << dma << logger::endl;
+  std::cout << "    dma = " << dma << logger::endl;
 #endif
   dev.runner_->IssueDma(*dma);
 }
@@ -126,7 +128,7 @@ void queue_base::trigger_process() {
 
     ctx.state = desc_ctx::DESC_PROCESSING;
 #ifdef DEBUG_QUEUES
-    log << "processing desc " << ctx.index << logger::endl;
+    std::cout << "processing desc " << ctx.index << logger::endl;
 #endif
     ctx.process();
   }
@@ -148,7 +150,7 @@ void queue_base::trigger_writeback() {
     cnt = len - active_first_idx;
 
 #ifdef DEBUG_QUEUES
-  log << "writing back avail=" << avail << " cnt=" << cnt
+  std::cout << "writing back avail=" << avail << " cnt=" << cnt
       << " idx=" << active_first_idx << logger::endl;
 #endif
 
@@ -172,7 +174,7 @@ void queue_base::trigger() {
 
 void queue_base::reset() {
 #ifdef DEBUG_QUEUES
-  log << "reset" << logger::endl;
+  std::cout << "reset" << logger::endl;
 #endif
 
   enabled = false;
@@ -187,7 +189,7 @@ void queue_base::reset() {
 
 void queue_base::reg_updated() {
 #ifdef DEBUG_QUEUES
-  log << "reg_updated: tail=" << reg_tail << " enabled=" << (int)enabled
+  std::cout << "reg_updated: tail=" << reg_tail << " enabled=" << (int)enabled
       << logger::endl;
 #endif
   if (!enabled)
@@ -213,6 +215,8 @@ uint32_t queue_base::max_writeback_capacity() {
 }
 
 void queue_base::interrupt() {
+  // std::cout<<"lan:interrupt"<<logger::endl;
+  
 }
 
 void queue_base::do_writeback(uint32_t first_idx, uint32_t first_pos,
@@ -244,7 +248,7 @@ void queue_base::writeback_done(uint32_t first_pos, uint32_t cnt) {
   }
 
 #ifdef DEBUG_QUEUES
-  log << "written back afi=" << active_first_idx << " afp=" << active_first_pos
+  std::cout << "written back afi=" << active_first_idx << " afp=" << active_first_pos
       << " acnt=" << active_cnt << " pos=" << first_pos << " cnt=" << cnt
       << logger::endl;
 #endif
@@ -261,7 +265,7 @@ void queue_base::writeback_done(uint32_t first_pos, uint32_t cnt) {
     ctx.state = desc_ctx::DESC_EMPTY;
   }
 #ifdef DEBUG_QUEUES
-  log << "   bump_cnt=" << bump_cnt << logger::endl;
+  std::cout << "   bump_cnt=" << bump_cnt << logger::endl;
 #endif
 
   active_first_pos = (active_first_pos + bump_cnt) % MAX_ACTIVE_DESCS;
@@ -294,7 +298,7 @@ void queue_base::desc_ctx::prepare() {
 
 void queue_base::desc_ctx::prepared() {
 #ifdef DEBUG_QUEUES
-  queue.log << "prepared desc " << index << logger::endl;
+  std::cout << "prepared desc " << index << logger::endl;
 #endif
   assert(state == DESC_PREPARING);
   state = DESC_PREPARED;
@@ -302,7 +306,7 @@ void queue_base::desc_ctx::prepared() {
 
 void queue_base::desc_ctx::processed() {
 #ifdef DEBUG_QUEUES
-  queue.log << "processed desc " << index << logger::endl;
+  std::cout << "processed desc " << index << logger::endl;
 #endif
   assert(state == DESC_PROCESSING);
   state = DESC_PROCESSED;
@@ -313,7 +317,7 @@ void queue_base::desc_ctx::processed() {
 void queue_base::desc_ctx::data_fetch(uint64_t addr, size_t data_len) {
   if (data_capacity < data_len) {
 #ifdef DEBUG_QUEUES
-    queue.log << "data_fetch allocating" << logger::endl;
+    std::cout << "data_fetch allocating" << logger::endl;
 #endif
     if (data_capacity != 0)
       delete[]((uint8_t *)data);
@@ -330,9 +334,9 @@ void queue_base::desc_ctx::data_fetch(uint64_t addr, size_t data_len) {
   dma->dma_addr_ = addr;
 
 #ifdef DEBUG_QUEUES
-  queue.log << "fetching data idx=" << index << " addr=" << addr
+  std::cout << "fetching data idx=" << index << " addr=" << addr
             << " len=" << data_len << logger::endl;
-  queue.log << "  dma = " << dma << " data=" << data << logger::endl;
+  std::cout << "  dma = " << dma << " data=" << data << logger::endl;
 #endif
   queue.dev.runner_->IssueDma(*dma);
 }
@@ -344,7 +348,7 @@ void queue_base::desc_ctx::data_fetched(uint64_t addr, size_t len) {
 void queue_base::desc_ctx::data_write(uint64_t addr, size_t data_len,
                                       const void *buf) {
 #ifdef DEBUG_QUEUES
-  queue.log << "data_write(addr=" << addr << " datalen=" << data_len << ")"
+  std::cout << "data_write(addr=" << addr << " datalen=" << data_len << ")"
             << logger::endl;
 #endif
   dma_data_wb *data_dma = new dma_data_wb(*this, data_len);
@@ -357,7 +361,7 @@ void queue_base::desc_ctx::data_write(uint64_t addr, size_t data_len,
 
 void queue_base::desc_ctx::data_written(uint64_t addr, size_t len) {
 #ifdef DEBUG_QUEUES
-  queue.log << "data_written(addr=" << addr << " datalen=" << len << ")"
+  std::cout << "data_written(addr=" << addr << " datalen=" << len << ")"
             << logger::endl;
 #endif
   processed();
@@ -380,7 +384,7 @@ void queue_base::dma_fetch::done() {
     memcpy(ctx.desc, buf + queue.desc_len * i, queue.desc_len);
 
 #ifdef DEBUG_QUEUES
-    queue.log << "preparing desc " << ctx.index << logger::endl;
+    std::cout << "preparing desc " << ctx.index << logger::endl;
 #endif
     ctx.state = desc_ctx::DESC_PREPARING;
     ctx.prepare();
@@ -406,7 +410,7 @@ void queue_base::dma_data_fetch::done() {
 
   if (part_offset < total_len) {
 #ifdef DEBUG_QUEUES
-    ctx.queue.log << "  dma_fetch: next part of multi part dma" << logger::endl;
+    std::cout << "  dma_fetch: next part of multi part dma" << logger::endl;
 #endif
     len_ = std::min(total_len - part_offset, MAX_DMA_SIZE);
     ctx.queue.dev.runner_->IssueDma(*this);

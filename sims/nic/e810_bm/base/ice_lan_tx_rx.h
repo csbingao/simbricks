@@ -3,7 +3,12 @@
 
 #ifndef _ICE_LAN_TX_RX_H_
 #define _ICE_LAN_TX_RX_H_
-
+typedef uint8_t u8;
+typedef uint16_t u16;
+typedef uint32_t u32;
+typedef uint16_t __le16;
+typedef uint32_t __le32;
+typedef uint64_t __le64;
 union ice_32byte_rx_desc {
 	struct {
 		__le64 pkt_addr; /* Packet buffer address */

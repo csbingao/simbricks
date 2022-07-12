@@ -42,8 +42,8 @@ $(d)gem5/ready: $(d)gem5
 $(d)qemu:
 	git clone git@github.com:simbricks/qemu.git $@
 
-$(d)qemu/ready: $(d)qemu
-	+cd $< && ./configure \
+$(d)qemu/ready: $(d)qemu $(d)rules.mk
+	+cd $< && ./configure --enable-debug \
 	    --target-list=x86_64-softmmu \
 	    --disable-werror \
 	    --extra-cflags="-I$(abspath $(lib_dir))" \

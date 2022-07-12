@@ -29,9 +29,9 @@
 #include <cassert>
 #include <iostream>
 
-#include "sims/nic/i40e_bm/headers.h"
-#include "sims/nic/i40e_bm/i40e_base_wrapper.h"
-#include "sims/nic/i40e_bm/i40e_bm.h"
+#include "sims/nic/e810_bm/headers.h"
+#include "sims/nic/e810_bm/i40e_base_wrapper.h"
+#include "sims/nic/e810_bm/i40e_bm.h"
 
 namespace i40e {
 
@@ -44,10 +44,10 @@ lan::lan(i40e_bm &dev_, size_t num_qs_)
   for (size_t i = 0; i < num_qs; i++) {
     rxqs[i] =
         new lan_queue_rx(*this, dev.regs.qrx_tail[i], i, dev.regs.qrx_ena[i],
-                         dev.regs.glhmc_lanrxbase[0], dev.regs.qint_rqctl[i]);
+                         dev.regs.glhmc_lanrxbase[0], dev.regs.qrx_ena[i]);
     txqs[i] =
         new lan_queue_tx(*this, dev.regs.qtx_tail[i], i, dev.regs.qtx_ena[i],
-                         dev.regs.glhmc_lantxbase[0], dev.regs.qint_tqctl[i]);
+                         dev.regs.qtx_comm_head[0], dev.regs.qtx_ena[i]);
   }
 }
 
@@ -62,22 +62,22 @@ void lan::reset() {
 void lan::qena_updated(uint16_t idx, bool rx) {
   uint32_t &reg = (rx ? dev.regs.qrx_ena[idx] : dev.regs.qtx_ena[idx]);
 #ifdef DEBUG_LAN
-  log << " qena updated idx=" << idx << " rx=" << rx << " reg=" << reg
+  std::cout << " qena updated idx=" << idx << " rx=" << rx << " reg=" << reg
       << logger::endl;
 #endif
   lan_queue_base &q = (rx ? static_cast<lan_queue_base &>(*rxqs[idx])
                           : static_cast<lan_queue_base &>(*txqs[idx]));
 
-  if ((reg & I40E_QRX_ENA_QENA_REQ_MASK) && !q.is_enabled()) {
+  if ((reg & QRX_CTRL_QENA_REQ_M) && !q.is_enabled()) {
     q.enable();
-  } else if (!(reg & I40E_QRX_ENA_QENA_REQ_MASK) && q.is_enabled()) {
+  } else if (!(reg & QRX_CTRL_QENA_REQ_M) && q.is_enabled()) {
     q.disable();
   }
 }
 
 void lan::tail_updated(uint16_t idx, bool rx) {
 #ifdef DEBUG_LAN
-  log << " tail updated idx=" << idx << " rx=" << rx << logger::endl;
+  std::cout << " tail updated idx=" << idx << " rx=" << rx << logger::endl;
 #endif
 
   lan_queue_base &q = (rx ? static_cast<lan_queue_base &>(*rxqs[idx])
@@ -120,14 +120,14 @@ bool lan::rss_steering(const void *data, size_t len, uint16_t &queue,
   uint16_t idx = hash % luts;
   queue = (dev.regs.pfqf_hlut[idx / 4] >> (8 * (idx % 4))) & 0x3f;
 #ifdef DEBUG_LAN
-  log << "  q=" << queue << " h=" << hash << " i=" << idx << logger::endl;
+  std::cout << "  q=" << queue << " h=" << hash << " i=" << idx << logger::endl;
 #endif
   return true;
 }
 
 void lan::packet_received(const void *data, size_t len) {
 #ifdef DEBUG_LAN
-  log << " packet received len=" << len << logger::endl;
+  std::cout << " packet received len=" << len << logger::endl;
 #endif
 
   uint32_t hash = 0;
@@ -162,7 +162,7 @@ void lan_queue_base::enable() {
     return;
 
 #ifdef DEBUG_LAN
-  log << " lan enabling queue " << idx << logger::endl;
+  std::cout << " lan enabling queue " << idx << logger::endl;
 #endif
   enabling = true;
 
@@ -180,7 +180,7 @@ void lan_queue_base::enable() {
 
 void lan_queue_base::ctx_fetched() {
 #ifdef DEBUG_LAN
-  log << " lan ctx fetched " << idx << logger::endl;
+  std::cout << " lan ctx fetched " << idx << logger::endl;
 #endif
 
   initialize();
@@ -194,7 +194,7 @@ void lan_queue_base::ctx_fetched() {
 
 void lan_queue_base::disable() {
 #ifdef DEBUG_LAN
-  log << " lan disabling queue " << idx << logger::endl;
+  std::cout << " lan disabling queue " << idx << logger::endl;
 #endif
   enabled = false;
   // TODO(antoinek): write back
@@ -202,10 +202,11 @@ void lan_queue_base::disable() {
 }
 
 void lan_queue_base::interrupt() {
+  std::cout<<"lan:interrupt"<<logger::endl;
   uint32_t qctl = reg_intqctl;
   uint32_t gctl = lanmgr.dev.regs.pfint_dyn_ctl0;
 #ifdef DEBUG_LAN
-  log << " interrupt qctl=" << qctl << " gctl=" << gctl << logger::endl;
+  std::cout << " interrupt qctl=" << qctl << " gctl=" << gctl << logger::endl;
 #endif
 
   uint16_t msix_idx = (qctl & I40E_QINT_TQCTL_MSIX_INDX_MASK) >>
@@ -217,14 +218,14 @@ void lan_queue_base::interrupt() {
                    !!(gctl & I40E_PFINT_DYN_CTL0_INTENA_MASK);
   if (!cause_ena) {
 #ifdef DEBUG_LAN
-    log << " interrupt cause disabled" << logger::endl;
+    std::cout << " interrupt cause disabled" << logger::endl;
 #endif
     return;
   }
 
   if (msix_idx == 0) {
 #ifdef DEBUG_LAN
-    log << "   setting int0.qidx=" << msix0_idx << logger::endl;
+    std::cout << "   setting int0.qidx=" << msix0_idx << logger::endl;
 #endif
     lanmgr.dev.regs.pfint_icr0 |=
         I40E_PFINT_ICR0_INTEVENT_MASK |
@@ -261,7 +262,7 @@ void lan_queue_rx::reset() {
 
 void lan_queue_rx::initialize() {
 #ifdef DEBUG_LAN
-  log << " initialize()" << logger::endl;
+  std::cout << " initialize()" << logger::endl;
 #endif
   uint8_t *ctx_p = reinterpret_cast<uint8_t *>(ctx);
 
@@ -286,19 +287,19 @@ void lan_queue_rx::initialize() {
   rxmax = (((*rxmax_p) >> 6) & ((1 << 14) - 1)) * 128;
 
   if (!longdesc) {
-    log << "lan_queue_rx::initialize: currently only 32B descs "
+    std::cout << "lan_queue_rx::initialize: currently only 32B descs "
            " supported"
         << logger::endl;
     abort();
   }
   if (dtype != 0) {
-    log << "lan_queue_rx::initialize: no header split supported"
+    std::cout << "lan_queue_rx::initialize: no header split supported"
         << logger::endl;
     abort();
   }
 
 #ifdef DEBUG_LAN
-  log << "  head=" << reg_dummy_head << " base=" << base << " len=" << len
+  std::cout << "  head=" << reg_dummy_head << " base=" << base << " len=" << len
       << " dbsz=" << dbuff_size << " hbsz=" << hbuff_size
       << " dtype=" << (unsigned)dtype << " longdesc=" << longdesc
       << " crcstrip=" << crc_strip << " rxmax=" << rxmax << logger::endl;
@@ -318,7 +319,7 @@ void lan_queue_rx::packet_received(const void *data, size_t pktlen,
 
   if (dcache.size() < num_descs) {
 #ifdef DEBUG_LAN
-    log << " not enough rx descs (" << num_descs << ", dropping packet"
+    std::cout << " not enough rx descs (" << num_descs << ", dropping packet"
         << logger::endl;
 #endif
     return;
@@ -328,7 +329,7 @@ void lan_queue_rx::packet_received(const void *data, size_t pktlen,
     rx_desc_ctx &ctx = *dcache.front();
 
 #ifdef DEBUG_LAN
-    log << " packet part=" << i << " received didx=" << ctx.index
+    std::cout << " packet part=" << i << " received didx=" << ctx.index
         << " cnt=" << dcache.size() << logger::endl;
 #endif
     dcache.pop_front();
@@ -392,7 +393,7 @@ void lan_queue_tx::reset() {
 
 void lan_queue_tx::initialize() {
 #ifdef DEBUG_LAN
-  log << " initialize()" << logger::endl;
+  std::cout << " initialize()" << logger::endl;
 #endif
   uint8_t *ctx_p = reinterpret_cast<uint8_t *>(ctx);
 
@@ -410,12 +411,13 @@ void lan_queue_tx::initialize() {
   hwb_addr = *hwb_addr_p;
 
 #ifdef DEBUG_LAN
-  log << "  head=" << reg_dummy_head << " base=" << base << " len=" << len
+  std::cout << "  head=" << reg_dummy_head << " base=" << base << " len=" << len
       << " hwb=" << hwb << " hwb_addr=" << hwb_addr << logger::endl;
 #endif
 }
 
 queue_base::desc_ctx &lan_queue_tx::desc_ctx_create() {
+  // std::cout<< "create lan queue rx" <<logger::endl;
   return *new tx_desc_ctx(*this);
 }
 
@@ -430,7 +432,7 @@ void lan_queue_tx::do_writeback(uint32_t first_idx, uint32_t first_pos,
     dma->dma_addr_ = hwb_addr;
 
 #ifdef DEBUG_LAN
-    log << " hwb=" << *((uint32_t *)dma->data_) << logger::endl;
+    std::cout << " hwb=" << *((uint32_t *)dma->data_) << logger::endl;
 #endif
     dev.runner_->IssueDma(*dma);
   }
@@ -451,9 +453,9 @@ bool lan_queue_tx::trigger_tx_packet() {
     return false;
 
 #ifdef DEBUG_LAN
-  log << "trigger_tx_packet(n=" << n
+  std::cout << "trigger_tx_packet(n=" << n
       << ", firstidx=" << ready_segments.at(0)->index << ")" << logger::endl;
-  log << "  tso_off=" << tso_off << " tso_len=" << tso_len << logger::endl;
+  std::cout << "  tso_off=" << tso_off << " tso_len=" << tso_len << logger::endl;
 #endif
 
   // check if we have a context descriptor first
@@ -471,7 +473,7 @@ bool lan_queue_tx::trigger_tx_packet() {
     tso_mss = (d1 & I40E_TXD_CTX_QW1_MSS_MASK) >> I40E_TXD_CTX_QW1_MSS_SHIFT;
 
 #ifdef DEBUG_LAN
-    log << "  tso=" << tso << " mss=" << tso_mss << logger::endl;
+    std::cout << "  tso=" << tso << " mss=" << tso_mss << logger::endl;
 #endif
 
     d_skip = 1;
@@ -483,12 +485,12 @@ bool lan_queue_tx::trigger_tx_packet() {
     d1 = rd->d->cmd_type_offset_bsz;
 
 #ifdef DEBUG_LAN
-    log << " data fetched didx=" << rd->index << " d1=" << d1 << logger::endl;
+    std::cout << " data fetched didx=" << rd->index << " d1=" << d1 << logger::endl;
 #endif
 
     dtype = (d1 & I40E_TXD_QW1_DTYPE_MASK) >> I40E_TXD_QW1_DTYPE_SHIFT;
     if (dtype != I40E_TX_DESC_DTYPE_DATA) {
-      log << "trigger tx desc is not a data descriptor idx=" << rd->index
+      std::cout << "trigger tx desc is not a data descriptor idx=" << rd->index
           << " d1=" << d1 << logger::endl;
       abort();
     }
@@ -517,7 +519,7 @@ bool lan_queue_tx::trigger_tx_packet() {
     total_len += pkt_len;
 
 #ifdef DEBUG_LAN
-    log << "    eop=" << eop << " len=" << pkt_len << logger::endl;
+    std::cout << "    eop=" << eop << " len=" << pkt_len << logger::endl;
 #endif
   }
 
@@ -536,7 +538,7 @@ bool lan_queue_tx::trigger_tx_packet() {
     }
   } else {
     if (total_len > MTU) {
-      log << "    packet is longer (" << total_len << ") than MTU (" << MTU
+      std::cout << "    packet is longer (" << total_len << ") than MTU (" << MTU
           << ")" << logger::endl;
       abort();
     }
@@ -544,7 +546,7 @@ bool lan_queue_tx::trigger_tx_packet() {
   }
 
 #ifdef DEBUG_LAN
-  log << "    iipt=" << iipt << " l4t=" << l4t << " maclen=" << maclen
+  std::cout << "    iipt=" << iipt << " l4t=" << l4t << " maclen=" << maclen
       << " iplen=" << iplen << " l4len=" << l4len << " total_len=" << total_len
       << " data_limit=" << data_limit << logger::endl;
 
@@ -567,7 +569,7 @@ bool lan_queue_tx::trigger_tx_packet() {
         end = data_limit;
 
 #ifdef DEBUG_LAN
-      log << "    copying data from off=" << off << " idx=" << rd->index
+      std::cout << "    copying data from off=" << off << " idx=" << rd->index
           << " start=" << start << " end=" << end << " tso_len=" << tso_len
           << logger::endl;
 #endif
@@ -585,7 +587,7 @@ bool lan_queue_tx::trigger_tx_packet() {
 
   if (!tso) {
 #ifdef DEBUG_LAN
-    log << "    normal non-tso packet" << logger::endl;
+    std::cout << "    normal non-tso packet" << logger::endl;
 #endif
 
     if (l4t == I40E_TX_DESC_CMD_L4T_EOFT_TCP) {
@@ -599,7 +601,7 @@ bool lan_queue_tx::trigger_tx_packet() {
     dev.runner_->EthSend(pktbuf, tso_len);
   } else {
 #ifdef DEBUG_LAN
-    log << "    tso packet off=" << tso_off << " len=" << tso_len
+    std::cout << "    tso packet off=" << tso_off << " len=" << tso_len
         << logger::endl;
 #endif
 
@@ -625,7 +627,7 @@ bool lan_queue_tx::trigger_tx_packet() {
   }
 
 #ifdef DEBUG_LAN
-  log << "    unit done" << logger::endl;
+  std::cout << "    unit done" << logger::endl;
 #endif
   while (dcnt-- > 0) {
     ready_segments.front()->processed();
@@ -652,7 +654,7 @@ void lan_queue_tx::tx_desc_ctx::prepare() {
   uint64_t d1 = d->cmd_type_offset_bsz;
 
 #ifdef DEBUG_LAN
-  queue.log << " desc fetched didx=" << index << " d1=" << d1 << logger::endl;
+  std::cout  << " desc fetched didx=" << index << " d1=" << d1 << logger::endl;
 #endif
 
   uint8_t dtype = (d1 & I40E_TXD_QW1_DTYPE_MASK) >> I40E_TXD_QW1_DTYPE_SHIFT;
@@ -661,7 +663,7 @@ void lan_queue_tx::tx_desc_ctx::prepare() {
         (d1 & I40E_TXD_QW1_TX_BUF_SZ_MASK) >> I40E_TXD_QW1_TX_BUF_SZ_SHIFT;
 
 #ifdef DEBUG_LAN
-    queue.log << "  bufaddr=" << d->buffer_addr << " len=" << len
+    std::cout  << "  bufaddr=" << d->buffer_addr << " len=" << len
               << logger::endl;
 #endif
 
@@ -670,14 +672,14 @@ void lan_queue_tx::tx_desc_ctx::prepare() {
 #ifdef DEBUG_LAN
     struct i40e_tx_context_desc *ctxd =
         reinterpret_cast<struct i40e_tx_context_desc *>(d);
-    queue.log << "  context descriptor: tp=" << ctxd->tunneling_params
+    std::cout  << "  context descriptor: tp=" << ctxd->tunneling_params
               << " l2t=" << ctxd->l2tag2 << " tctm=" << ctxd->type_cmd_tso_mss
               << logger::endl;
 #endif
 
     prepared();
   } else {
-    queue.log << "txq: only support context & data descriptors" << logger::endl;
+    std::cout  << "txq: only support context & data descriptors" << logger::endl;
     abort();
   }
 }
@@ -706,7 +708,7 @@ lan_queue_tx::dma_hwb::~dma_hwb() {
 
 void lan_queue_tx::dma_hwb::done() {
 #ifdef DEBUG_LAN
-  queue.log << " tx head written back" << logger::endl;
+  std::cout << " tx head written back" << logger::endl;
 #endif
   queue.writeback_done(pos, cnt);
   queue.trigger();

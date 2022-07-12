@@ -41,3 +41,4 @@ mk/local.mk
 .idea
 .vscode
 sims/nic/e1000_gem5/e1000_gem5
+images/ice.pkg
