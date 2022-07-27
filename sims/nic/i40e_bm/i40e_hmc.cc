@@ -105,32 +105,33 @@ void host_mem_cache::issue_mem_op(mem_op &op) {
   struct segment *seg = &segs[seg_idx];
 
   if (seg_idx >= MAX_SEGMENTS) {
-    std::cerr << "hmc issue_mem_op: seg index too high " << seg_idx
+    std::cout << "hmc issue_mem_op: seg index too high " << seg_idx
               << std::endl;
     abort();
   }
 
   if (!seg->valid) {
     // TODO(antoinek): errorinfo and data registers
-    std::cerr << "hmc issue_mem_op: segment invalid addr=" << addr << std::endl;
+    std::cout << "hmc issue_mem_op: segment invalid addr=" << addr << std::endl;
     op.failed = true;
     return;
   }
 
   if (seg_idx != seg_idx_last) {
-    std::cerr << "hmc issue_mem_op: operation crosses segs addr=" << addr
+    std::cout << "hmc issue_mem_op: operation crosses segs addr=" << addr
               << " len=" << op.len_ << std::endl;
     abort();
   }
 
   if (!seg->direct) {
-    std::cerr << "hmc issue_mem_op: TODO paged ops addr=" << addr << std::endl;
+    std::cout << "hmc issue_mem_op: TODO paged ops addr=" << addr << std::endl;
     abort();
   }
 
   op.failed = false;
   op.dma_addr_ = seg->addr + dir_off;
-
+  std::cout << "hmc issue_mem_op: hmc_addr=" << addr
+            << " dma_addr=" << op.dma_addr_ << " len=" << op.len_ << std::endl;
 #ifdef DEBUG_HMC
   std::cerr << "hmc issue_mem_op: hmc_addr=" << addr
             << " dma_addr=" << op.dma_addr_ << " len=" << op.len_ << std::endl;

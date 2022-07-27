@@ -83,13 +83,13 @@ for n in kinds_of_net:
                                              node.I40eLinuxNode, node.IperfUDPClient, ip_start = 2)
 
         if c == 'e810':
-            # servers = sim.create_basic_hosts(e, 1, 'server', net, sim.I40eNIC, sim.QemuHost,
-            #                                  node.I40eLinuxNode, node.IperfUDPServer)
+            servers = sim.create_basic_hosts(e, 1, 'server', net, sim.E810NIC, sim.QemuHost,
+                                             node.E810LinuxNode, node.IperfUDPServer)
             clients = sim.create_basic_hosts(e, 1, 'client', net, sim.E810NIC, sim.QemuHost,
                                              node.E810LinuxNode, node.IperfUDPClient, ip_start = 2)
         clients[0].wait = True
         # clients[0].sync = 1
-        # clients[0].node_config.app.server_ip = servers[0].node_config.ip
+        clients[0].node_config.app.server_ip = servers[0].node_config.ip
         clients[0].node_config.app.rate = rate
         clients[0].node_config.cores = 1
         # clients[0].debug = True

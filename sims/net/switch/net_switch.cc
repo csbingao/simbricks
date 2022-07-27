@@ -43,8 +43,8 @@ extern "C" {
 #include <simbricks/proto/base.h>
 };
 
-//#define NETSWITCH_DEBUG
-#define NETSWITCH_STAT
+// #define NETSWITCH_DEBUG
+// #define NETSWITCH_STAT
 
 static uint64_t sync_period = (500 * 1000ULL);  // 500ns
 static uint64_t eth_latency = (500 * 1000ULL);  // 500ns
@@ -179,7 +179,6 @@ class NetPort : public Port {
 
   virtual void RxDone() override {
     assert(rx_ != nullptr);
-
     SimbricksNetIfD2NDone(&netif_, rx_);
     rx_ = nullptr;
   }
@@ -295,6 +294,7 @@ class NetHostPort : public Port {
       const void *data, size_t len, uint64_t cur_ts) override {
     volatile union SimbricksProtoNetD2N *msg_to =
       SimbricksNicIfD2NAlloc(&nicif_, cur_ts);
+    
     if (!msg_to && !sync_) {
       return false;
     } else if (!msg_to && sync_) {
@@ -406,9 +406,11 @@ static void switch_pkt(Port &port, size_t iport) {
     s_d2n_poll_suc += 1;
   }
 #endif
-
+  
+  // printf(" rx packet successfully");
   if (poll == Port::kRxPollSuccess) {
     // Get MAC addresses
+    // fprintf(stderr, "poll state: %d\n", poll);
     MAC dst((const uint8_t *)pkt_data), src((const uint8_t *)pkt_data + 6);
     // MAC learning
     if (!(src == bcast_addr)) {
@@ -418,8 +420,9 @@ static void switch_pkt(Port &port, size_t iport) {
     auto i = mac_table.find(dst);
     if (i != mac_table.end()) {
       size_t eport = i->second;
-      if (eport != iport)
+      if (eport != iport) {
         forward_pkt(pkt_data, pkt_len, eport, iport);
+      }
     } else {
       // Broadcast
       for (size_t eport = 0; eport < ports.size(); eport++) {
@@ -526,7 +529,7 @@ int main(int argc, char *argv[]) {
 #endif
 
 
-  printf("start polling\n");
+  // printf("start polling\n");
   while (!exiting) {
     // Sync all interfaces
     for (auto port : ports)

@@ -102,16 +102,29 @@ bool lan::rss_steering(const void *data, size_t len, uint16_t &queue,
 
   // should actually determine packet type and mask with enabled packet types
   // TODO(antoinek): ipv6
+  // std::cout << "rss_steering" << logger::endl;
+  // std::cout << "tcp eth type: " <<htons(ETH_TYPE_IP)<< logger::endl;
+  // std::cout << "tcp eth type: " <<tcp->eth.type<< logger::endl;
+  // std::cout << "udp eth type: " <<udp->eth.type<< logger::endl;
+  // std::cout << "tcp ip type: " <<IP_PROTO_TCP<< logger::endl;
+  // std::cout << "tcp ip type: " <<+tcp->ip.proto<< logger::endl;
+  // std::cout << "udp ip type: " <<+udp->ip.proto<< logger::endl;
+  // should actually determine packet type and mask with enabled packet types
+  // TODO(antoinek): ipv6
   if (tcp->eth.type == htons(ETH_TYPE_IP) && tcp->ip.proto == IP_PROTO_TCP) {
     hash = rss_kc.hash_ipv4(ntohl(tcp->ip.src), ntohl(tcp->ip.dest),
                             ntohs(tcp->tcp.src), ntohs(tcp->tcp.dest));
+    std::cout << "TCP IP Ethernet" << logger::endl;
   } else if (udp->eth.type == htons(ETH_TYPE_IP) &&
              udp->ip.proto == IP_PROTO_UDP) {
     hash = rss_kc.hash_ipv4(ntohl(udp->ip.src), ntohl(udp->ip.dest),
                             ntohs(udp->udp.src), ntohs(udp->udp.dest));
+    std::cout << "UDP IP Ethernet" << logger::endl;
   } else if (udp->eth.type == htons(ETH_TYPE_IP)) {
     hash = rss_kc.hash_ipv4(ntohl(udp->ip.src), ntohl(udp->ip.dest), 0, 0);
+    std::cout << "UDP non-IP Ethernet" << logger::endl;
   } else {
+    std::cout << "rss_stearing: non-matched, return false." << logger::endl;
     return false;
   }
 
@@ -409,10 +422,10 @@ void lan_queue_tx::initialize() {
   hwb = !!(*hwb_qlen_p & (1 << 0));
   hwb_addr = *hwb_addr_p;
 
-#ifdef DEBUG_LAN
-  log << "  head=" << reg_dummy_head << " base=" << base << " len=" << len
+// #ifdef DEBUG_LAN
+  std::cout << "  head=" << reg_dummy_head << " base=" << base << " len=" << len
       << " hwb=" << hwb << " hwb_addr=" << hwb_addr << logger::endl;
-#endif
+// #endif
 }
 
 queue_base::desc_ctx &lan_queue_tx::desc_ctx_create() {
@@ -660,10 +673,10 @@ void lan_queue_tx::tx_desc_ctx::prepare() {
     uint16_t len =
         (d1 & I40E_TXD_QW1_TX_BUF_SZ_MASK) >> I40E_TXD_QW1_TX_BUF_SZ_SHIFT;
 
-#ifdef DEBUG_LAN
-    queue.log << "  bufaddr=" << d->buffer_addr << " len=" << len
+// #ifdef DEBUG_LAN
+    std::cout << "  bufaddr=" << d->buffer_addr << " len=" << len
               << logger::endl;
-#endif
+// #endif
 
     data_fetch(d->buffer_addr, len);
   } else if (dtype == I40E_TX_DESC_DTYPE_CONTEXT) {

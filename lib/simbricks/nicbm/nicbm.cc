@@ -172,10 +172,11 @@ void Runner::DmaDo(DMAOp &op) {
     memcpy((void *)write->data, (void *)op.data_, op.len_);
     
 #ifdef DEBUG_NICBM
+
     uint8_t *tmp = (uint8_t*)op.data_;
     int d;
     printf("nicbm: dma write data: \n");
-    for (d = 0; d < op.len_; d++){
+    for (d = 0; d < 2; d++){
       printf("%02X ", *tmp);
       tmp++;
 
@@ -343,9 +344,9 @@ void Runner::EthRecv(volatile struct SimbricksProtoNetN2DRecv *recv) {
 }
 
 void Runner::EthSend(const void *data, size_t len) {
-#ifdef DEBUG_NICBM
+// #ifdef DEBUG_NICBM
   printf("nicbm: eth tx: len %zu\n", len);
-#endif
+// #endif
 
   volatile union SimbricksProtoNetD2N *msg = D2NAlloc();
   volatile struct SimbricksProtoNetD2NSend *send = &msg->send;
@@ -428,10 +429,8 @@ void Runner::PollN2D() {
     s_n2d_poll_total += 1;
   }
 #endif
-
   if (msg == NULL)
     return;
-
 #ifdef STAT_NICBM
   n2d_poll_suc += 1;
   if (stat_flag){

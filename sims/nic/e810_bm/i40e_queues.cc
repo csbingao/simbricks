@@ -63,16 +63,22 @@ void queue_base::ctxs_init() {
 void queue_base::trigger_fetch() {
   if (!enabled)
     return;
-
+  
   // calculate how many we can fetch
+  // std::cout << "active_first_idx: " << active_first_idx << logger::endl;
+  // std::cout << "active_cnt: " << active_cnt << logger::endl;
+  // std::cout << "reg_tail: " << reg_tail << logger::endl;
+  std::cout << "len: " << len << logger::endl;
   uint32_t next_idx = (active_first_idx + active_cnt) % len;
+  // std::cout << "next_idx: " << next_idx << logger::endl;
   uint32_t desc_avail = (reg_tail - next_idx) % len;
+  std::cout << "desc_avail: " << desc_avail << logger::endl;
   uint32_t fetch_cnt = desc_avail;
   fetch_cnt = std::min(fetch_cnt, MAX_ACTIVE_DESCS - active_cnt);
   if (max_active_capacity() <= active_cnt)
     fetch_cnt = std::min(fetch_cnt, max_active_capacity() - active_cnt);
   fetch_cnt = std::min(fetch_cnt, max_fetch_capacity());
-
+  std::cout << "fetch_cnt: " << fetch_cnt << logger::endl;
   if (next_idx + fetch_cnt > len)
     fetch_cnt = len - next_idx;
 
@@ -96,16 +102,18 @@ void queue_base::trigger_fetch() {
     ctx.index = (next_idx + i) % len;
   }
   active_cnt += fetch_cnt;
-
+  
   // prepare & issue dma
   dma_fetch *dma = new dma_fetch(*this, desc_len * fetch_cnt);
   dma->write_ = false;
   dma->dma_addr_ = base + next_idx * desc_len;
   dma->pos = first_pos;
 #ifdef DEBUG_QUEUES
-  std::cout << "    dma = " << dma << logger::endl;
+  // std::cout << "    dma = " << dma << logger::endl;
+  std::cout << "    dma addr = " << dma->dma_addr_ << logger::endl;
 #endif
   dev.runner_->IssueDma(*dma);
+  std::cout<<"did I get here? data fetch"<<logger::endl;
 }
 
 void queue_base::trigger_process() {
@@ -382,9 +390,11 @@ void queue_base::dma_fetch::done() {
   for (uint32_t i = 0; i < len_ / queue.desc_len; i++) {
     desc_ctx &ctx = *queue.desc_ctxs[(pos + i) % queue.MAX_ACTIVE_DESCS];
     memcpy(ctx.desc, buf + queue.desc_len * i, queue.desc_len);
-
+    union i40e_32byte_rx_desc *rxd =
+      reinterpret_cast<union i40e_32byte_rx_desc *>(ctx.desc);
 #ifdef DEBUG_QUEUES
     std::cout << "preparing desc " << ctx.index << logger::endl;
+    std::cout << "rx desc read pkt_addr" << rxd->read.pkt_addr << logger::endl;
 #endif
     ctx.state = desc_ctx::DESC_PREPARING;
     ctx.prepare();

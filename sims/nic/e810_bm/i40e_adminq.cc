@@ -53,7 +53,6 @@ void queue_admin_tx::reg_updated() {
   len = (reg_len & I40E_GL_ATQLEN_ATQLEN_MASK) >> I40E_GL_ATQLEN_ATQLEN_SHIFT;
 
   if (!enabled && (reg_len & I40E_GL_ATQLEN_ATQENABLE_MASK)) {
-    cout << " enable base=" << base << " len=" << len << endl;
 #ifdef DEBUG_ADMINQ
     cout << " enable base=" << base << " len=" << len << logger::endl;
 #endif
@@ -133,7 +132,7 @@ void queue_admin_tx::admin_desc_ctx::prepare() {
 }
 
 void queue_admin_tx::admin_desc_ctx::process() {
-  cout << " opcode " << d->opcode << " is processing" << endl;
+  cout << " opcode " << d->opcode << " is processing" << logger::endl;
 #ifdef DEBUG_ADMINQ
   cout <<  " descriptor " << index << " fetched" << logger::endl;
 #endif
@@ -190,6 +189,7 @@ void queue_admin_tx::admin_desc_ctx::process() {
         reinterpret_cast<struct ice_aqc_list_caps *>(d->params.raw);
 
     struct ice_aqc_list_caps_elem caps[] = {
+        {ICE_AQC_CAPS_VALID_FUNCTIONS, 1, 0, dev.NUM_VSIS, 8, 0, {}},
         {ICE_AQC_CAPS_RSS, 1, 0, 2048, 8, 0, {}},
         {ICE_AQC_CAPS_RXQS, 1, 0, dev.NUM_QUEUES, 0, 0, {}},
         {ICE_AQC_CAPS_TXQS, 1, 0, dev.NUM_QUEUES, 0, 0, {}},
@@ -251,7 +251,7 @@ void queue_admin_tx::admin_desc_ctx::process() {
     d->params.external.param0 = 0;
     d->params.external.param1 = 0;
 
-    desc_complete_indir(0, &par, sizeof(par), 0, true);
+    desc_complete_indir(0, &par, sizeof(par));
   } else if (d->opcode == ice_aqc_opc_get_link_status) {
 #ifdef DEBUG_ADMINQ
     cout <<  "  link status" << logger::endl;
@@ -334,7 +334,40 @@ void queue_admin_tx::admin_desc_ctx::process() {
     memcpy(buf + sizeof(hr), els + first, sizeof(els[0]) * report);
 
     desc_complete_indir(0, buf, buflen);
-  } else if (d->opcode == i40e_aqc_opc_set_switch_config) {
+  } else if (d->opcode == ice_aqc_opc_get_pkg_info_list){
+    struct ice_aqc_get_pkg_info_resp *v =
+        reinterpret_cast<struct ice_aqc_get_pkg_info_resp *>(
+                d->params.raw);
+    struct ice_aqc_get_pkg_info_resp *get_pkg_info = reinterpret_cast<struct ice_aqc_get_pkg_info_resp*> (data);
+    get_pkg_info[0].count = 1;
+    get_pkg_info[0].pkg_info[0].is_active = 1;
+    get_pkg_info[0].pkg_info[0].ver.major = 1;
+    get_pkg_info[0].pkg_info[0].ver.minor = 3;
+    get_pkg_info[0].pkg_info[0].ver.update = 35;
+    get_pkg_info[0].pkg_info[0].ver.draft = 0;
+    char *ice_pkg_name = (char *)malloc(ICE_PKG_NAME_SIZE*sizeof(char));
+    memset(ice_pkg_name, 0, ICE_PKG_NAME_SIZE*sizeof(char));
+    char ice_pkg_name_str[ICE_PKG_NAME_SIZE] = "ICE COMMS Package";
+    for (int i = 0; i <= strlen(ice_pkg_name); i++)
+    {
+      ice_pkg_name[i] = ice_pkg_name_str[i];
+    }
+    // ice_pkg_name[i]
+    memcpy(get_pkg_info[0].pkg_info[0].name, ice_pkg_name, sizeof(get_pkg_info[0].pkg_info[0].name));
+    desc_complete_indir(0, get_pkg_info, sizeof(*get_pkg_info));
+  } else if (d->opcode == ice_aqc_opc_set_rss_key) {
+    struct ice_aqc_get_set_rss_key *v =
+        reinterpret_cast<struct ice_aqc_get_set_rss_key *>(
+                d->params.raw);
+    
+    desc_complete_indir(0, data, d->datalen);
+  } else if (d->opcode == ice_aqc_opc_set_rss_lut) {
+    struct ice_aqc_get_set_rss_lut *v =
+        reinterpret_cast<struct ice_aqc_get_set_rss_lut *>(
+                d->params.raw);
+    desc_complete_indir(0, data, d->datalen);
+  }
+  else if (d->opcode == i40e_aqc_opc_set_switch_config) {
 #ifdef DEBUG_ADMINQ
     cout <<  "  set switch config" << logger::endl;
 #endif
@@ -375,12 +408,12 @@ void queue_admin_tx::admin_desc_ctx::process() {
 #ifdef DEBUG_ADMINQ
     cout <<  "  configure vsi bw limit" << logger::endl;
 #endif
-    cout<<"go to here"<<endl;
+    // cout<<"go to here"<<endl;
     struct ice_aqc_get_topo *get_topo = reinterpret_cast<struct ice_aqc_get_topo *>(
                 d->params.raw);
     get_topo->port_num = 1;
     get_topo->num_branches = 1;
-    cout<<"size of topo_elem" << sizeof(dev.topo_elem)<<endl;
+    // cout<<"size of topo_elem" << sizeof(dev.topo_elem)<<endl;
     // memset(topo_elem, 0, sizeof(*topo_elem));
     (dev.topo_elem).hdr.num_elems = 9;
     for (int i = 0; i < 9; i++)
@@ -404,14 +437,14 @@ void queue_admin_tx::admin_desc_ctx::process() {
 
     desc_complete_indir(0, &dev.topo_elem, sizeof(dev.topo_elem));
   } else if (d->opcode == ice_aqc_opc_get_sched_elems) {
-    printf("l1");
+    // printf("l1");
     struct ice_aqc_sched_elem_cmd *get_elem_cmd = reinterpret_cast<ice_aqc_sched_elem_cmd *> (d->params.raw);
     get_elem_cmd->num_elem_resp = 1;
     // struct ice_aqc_get_elem *get_elem_buf = reinterpret_cast<ice_aqc_get_elem *> (data);
     struct ice_aqc_get_elem *get_elem = reinterpret_cast<struct ice_aqc_get_elem*> (data);
-    printf("l2");
-    printf("node id: %d", get_elem->generic[0].node_teid);
-    printf("l3");
+    // printf("l2");
+    // printf("node id: %d", get_elem->generic[0].node_teid);
+    // printf("l3");
     if (get_elem->generic[0].node_teid == 0){
       get_elem->generic[0].parent_teid = 0xFFFFFFFF;
       get_elem->generic[0].data.elem_type = ICE_AQC_ELEM_TYPE_ROOT_PORT;
@@ -422,15 +455,15 @@ void queue_admin_tx::admin_desc_ctx::process() {
       get_elem->generic[0].parent_teid = 0;
       get_elem->generic[0].data.elem_type = ICE_AQC_ELEM_TYPE_TC;
     }
-    printf("l4");
+    // printf("l4");
     desc_complete_indir(0, get_elem, sizeof(*get_elem));
-    printf("l5, data size: %d", sizeof(get_elem));
+    // printf("l5, data size: %d", sizeof(get_elem));
   } else if (d->opcode == ice_aqc_opc_add_sched_elems) {
     struct ice_aqc_sched_elem_cmd *get_elem_cmd = reinterpret_cast<ice_aqc_sched_elem_cmd *> (d->params.raw);
     get_elem_cmd->num_elem_resp = 1;
     struct ice_aqc_add_elem *add_elem = reinterpret_cast<struct ice_aqc_add_elem*> (data);
-    cout<< "1025 get heere1"<<endl;
-    cout<< "1025 get heere"<<endl;
+    // cout<< "1025 get heere1"<<endl;
+    // cout<< "1025 get heere"<<endl;
     add_elem->generic[0].node_teid = add_elem->generic[0].parent_teid + 8;
     // get_elem.generic[0].data.elem_type = ICE_AQC_ELEM_TYPE_ENTRY_POINT;
     desc_complete_indir(0, add_elem, d->datalen);
@@ -460,11 +493,17 @@ void queue_admin_tx::admin_desc_ctx::process() {
     struct ice_aqc_add_tx_qgrp *add_txqs = reinterpret_cast<ice_aqc_add_tx_qgrp *> (data);
     add_txqs->parent_teid = 2;
     add_txqs->num_txqs = 1;
-    add_txqs->txqs[0].txq_id = 0;
+    // add_txqs->txqs[0].txq_id = 0;
     add_txqs->txqs[0].q_teid = 10;
     add_txqs->txqs[0].info.elem_type = ICE_AQC_ELEM_TYPE_SE_GENERIC;
     add_txqs->txqs[0].info.cir_bw.bw_alloc = 100;
     add_txqs->txqs[0].info.eir_bw.bw_alloc = 100;
+    if (add_txqs->txqs[0].txq_id >=4){
+      cout<< "ice_aqc_opc_add_txqs error. txd id = "<< add_txqs->txqs[0].txq_id << logger::endl;
+    }
+    memcpy(dev.ctx_addr[add_txqs->txqs[0].txq_id], add_txqs->txqs[0].txq_ctx, sizeof(u8)*22);
+    // dev.regs.qtx_ena[add_txqs->txqs[0].txq_id] = 1 ;
+    // dev.lanmgr.qena_updated(add_txqs->txqs[0].txq_id, false);
     desc_complete_indir(0, data, d->datalen);
   }else if (d->opcode == ice_aqc_opc_dis_txqs) {
     struct ice_aqc_dis_txqs *dis_txqs_cmd = reinterpret_cast<ice_aqc_dis_txqs *> (d->params.raw);
@@ -473,8 +512,8 @@ void queue_admin_tx::admin_desc_ctx::process() {
     desc_complete_indir(0, data, d->datalen);
   } else if (d->opcode == ice_aqc_opc_download_pkg) {
     struct ice_aqc_download_pkg *download_pkg = reinterpret_cast<ice_aqc_download_pkg *> (d->params.raw);
-    struct ice_aqc_download_pkg_resp *download_pkg_resp = reinterpret_cast<ice_aqc_download_pkg_resp *> (data);
-    // download_pkg_resp->error_info
+    struct ice_aqc_download_pkg_resp download_pkg_resp;
+    // download_pkg_resp.error_info = ICE_AQ_RC_OK;
     desc_complete_indir(0, data, d->datalen);
   } else if (d->opcode == i40e_aqc_opc_query_vsi_bw_config) {
 #ifdef DEBUG_ADMINQ

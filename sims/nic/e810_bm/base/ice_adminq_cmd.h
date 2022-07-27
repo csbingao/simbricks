@@ -1891,7 +1891,7 @@ struct ice_pkg_ver {
 
 struct ice_aqc_get_pkg_info {
 	struct ice_pkg_ver ver;
-	char name[ICE_SEG_NAME_SIZE];
+	char name[ICE_PKG_NAME_SIZE];
 	__le32 track_id;
 	u8 is_in_nvm;
 	u8 is_active;
@@ -1902,7 +1902,7 @@ struct ice_aqc_get_pkg_info {
 /* Get Package Info List response buffer format (0x0C43) */
 struct ice_aqc_get_pkg_info_resp {
 	__le32 count;
-	struct ice_aqc_get_pkg_info pkg_info[];
+	struct ice_aqc_get_pkg_info pkg_info[1];
 };
 
 /* Driver Shared Parameters (direct, 0x0C90) */
@@ -2170,4 +2170,9 @@ enum ice_adminq_opc {
 	ice_aqc_opc_fw_logging_info			= 0xFF10,
 };
 
+// /* Tx Descriptor */
+// struct ice_tx_desc {
+// 	__le64 buf_addr; /* Address of descriptor's data buf */
+// 	__le64 cmd_type_offset_bsz;
+// };
 #endif /* _ICE_ADMINQ_CMD_H_ */

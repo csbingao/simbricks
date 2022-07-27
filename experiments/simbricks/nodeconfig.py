@@ -131,7 +131,9 @@ class LinuxNode(NodeConfig):
                 l.append('insmod ' + d)
             else:
                 if d == 'ice':
+                    l.append("ls -al /lib/firmware/intel/ice/ddp/ice.pkg")
                     l.append('modprobe ' + d )
+                    # l.append('apt list linux-firmware')
                     # l.append('modprobe ' + d + ' dyndbg==pmf ')
                 else:
                     l.append('modprobe ' + d)
@@ -352,7 +354,12 @@ class IperfTCPServer(AppConfig):
 
 class IperfUDPServer(AppConfig):
     def run_cmds(self, node):
-        return ['iperf -s -u']
+        return [
+            # 'nohup tcpdump -vvv -XX -i eth0 &',
+            # 'nohup iperf -s -u>output 2>&1 &',
+            'iperf -s -u',
+            'sleep 10',
+            'cat nohup.out ']
 
 class IperfTCPClient(AppConfig):
     server_ip = '10.0.0.1'
@@ -377,12 +384,15 @@ class IperfUDPClient(AppConfig):
 
     def run_cmds(self, node):
         cmds = ['sleep 1',
-                'iperf -c ' + self.server_ip + ' -i 1 -u -b ' + self.rate]
+                # 'nohup tcpdump -vvv -XX -i eth0& ',
+                'iperf -c ' + self.server_ip + ' -i 1 -u -b ' + self.rate,
+                'cat nohup.out ']
 
         if self.is_last:
             cmds.append('sleep 0.5')
         else:
             cmds.append('sleep 10')
+            cmds.append('ethtool -S eth0')
 
         return cmds
 

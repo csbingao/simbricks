@@ -100,42 +100,42 @@ void host_mem_cache::reg_updated(uint64_t addr) {
 
 void host_mem_cache::issue_mem_op(mem_op &op) {
   uint64_t addr = op.dma_addr_;
-  uint16_t seg_idx = addr >> 21;
-  uint16_t seg_idx_last = (addr + op.len_ - 1) >> 21;
-  uint32_t dir_off = addr & ((1 << 21) - 1);
-  struct segment *seg = &segs[seg_idx];
+  // uint16_t seg_idx = addr >> 21;
+  // uint16_t seg_idx_last = (addr + op.len_ - 1) >> 21;
+  // uint32_t dir_off = addr & ((1 << 21) - 1);
+  // struct segment *seg = &segs[seg_idx];
 
-  if (seg_idx >= MAX_SEGMENTS) {
-    std::cout<< "hmc issue_mem_op: seg index too high " << seg_idx
-              << std::endl;
-    abort();
-  }
+  // if (seg_idx >= MAX_SEGMENTS) {
+  //   std::cout<< "hmc issue_mem_op: seg index too high " << seg_idx
+  //             << std::endl;
+  //   abort();
+  // }
 
-  if (!seg->valid) {
-    // TODO(antoinek): errorinfo and data registers
-    std::cout<< "hmc issue_mem_op: segment invalid addr=" << addr << std::endl;
-    op.failed = true;
-    return;
-  }
+  // if (!seg->valid) {
+  //   // TODO(antoinek): errorinfo and data registers
+  //   std::cout<< "hmc issue_mem_op: segment invalid addr=" << addr << std::endl;
+  //   op.failed = true;
+  //   return;
+  // }
 
-  if (seg_idx != seg_idx_last) {
-    std::cout<< "hmc issue_mem_op: operation crosses segs addr=" << addr
-              << " len=" << op.len_ << std::endl;
-    abort();
-  }
+  // if (seg_idx != seg_idx_last) {
+  //   std::cout<< "hmc issue_mem_op: operation crosses segs addr=" << addr
+  //             << " len=" << op.len_ << std::endl;
+  //   abort();
+  // }
 
-  if (!seg->direct) {
-    std::cout<< "hmc issue_mem_op: TODO paged ops addr=" << addr << std::endl;
-    abort();
-  }
+  // if (!seg->direct) {
+  //   std::cout<< "hmc issue_mem_op: TODO paged ops addr=" << addr << std::endl;
+  //   abort();
+  // }
 
   op.failed = false;
-  op.dma_addr_ = seg->addr + dir_off;
+  // op.dma_addr_ = seg->addr + dir_off;
 
 #ifdef DEBUG_HMC
   std::cout<< "hmc issue_mem_op: hmc_addr=" << addr
-            << " dma_addr=" << op.dma_addr_ << " len=" << op.len_ << std::endl;
+            << " dma_addr=" << op.dma_addr_ << " len=" << op.len_ << logger::endl;
 #endif
-  dev.runner_->IssueDma(op);
+  // dev.runner_->IssueDma(op);
 }
 }  // namespace i40e

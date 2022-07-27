@@ -29,6 +29,7 @@
 #include <cstring>
 #include <deque>
 #include <set>
+// #define DEBUG_NICBM
 
 extern "C" {
 #include <simbricks/nicif/nicif.h>

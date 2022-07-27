@@ -49,7 +49,7 @@ i40e_bm::~i40e_bm() {
 }
 
 void i40e_bm::SetupIntro(struct SimbricksProtoPcieDevIntro &di) {
-  di.bars[BAR_REGS].len = 128 * 1024 * 1024;
+  di.bars[BAR_REGS].len = 1024 * 1024 * 1024;
   di.bars[BAR_REGS].flags = SIMBRICKS_PROTO_PCIE_BAR_64;
   di.bars[BAR_IO].len = 32;
   di.bars[BAR_IO].flags = SIMBRICKS_PROTO_PCIE_BAR_IO;
@@ -84,6 +84,7 @@ void i40e_bm::EthRx(uint8_t port, const void *data, size_t len) {
 #ifdef DEBUG_DEV
   std::cout << "i40e: received packet len=" << len << logger::endl;
 #endif
+  std::cout << "i40e: received packet len=" << len << logger::endl;
   lanmgr.packet_received(data, len);
 }
 
@@ -159,17 +160,6 @@ uint32_t i40e_bm::reg_mem_read32(uint64_t addr) {
   }else if (addr >= QTX_COMM_HEAD(0) &&
              addr <= QTX_COMM_HEAD(16383)) {
     val = regs.qtx_comm_head[(addr - QTX_COMM_HEAD(0)) / 4];
-  
-  // } else if (addr >= I40E_PFINT_LNKLSTN(0) &&
-  //            addr <= I40E_PFINT_LNKLSTN(NUM_PFINTS - 1)) {
-  //   val = regs.pfint_lnklstn[(addr - I40E_PFINT_LNKLSTN(0)) / 4];
-  // } else if (addr >= I40E_PFINT_RATEN(0) &&
-  //            addr <= I40E_PFINT_RATEN(NUM_PFINTS - 1)) {
-  //   val = regs.pfint_raten[(addr - I40E_PFINT_RATEN(0)) / 4];
-
-  // } else if (addr >= I40E_GLLAN_TXPRE_QDIS(0) &&
-  //            addr < I40E_GLLAN_TXPRE_QDIS(12)) {
-  //   val = regs.gllan_txpre_qdis[(addr - I40E_GLLAN_TXPRE_QDIS(0)) / 4];
   } else if (addr >= PF0INT_ITR_0(0) &&
              addr <= PF0INT_ITR_0(2047)) {
     val = regs.pfint_itrn[0][(addr - PF0INT_ITR_0(0)) / 4096];
@@ -180,74 +170,46 @@ uint32_t i40e_bm::reg_mem_read32(uint64_t addr) {
              addr <= PF0INT_ITR_2(2047)) {
     val = regs.pfint_itrn[2][(addr - PF0INT_ITR_2(0)) / 4096];
   }else if (addr >= QINT_TQCTL(0) &&
-             addr <= QINT_TQCTL(NUM_QUEUES - 1)) {
-    val = regs.qtx_ena[(addr - QINT_TQCTL(0)) / 4];
-  } else if (addr >= QRX_CONTEXT(0, 0) && addr <= QRX_CONTEXT(0, 2047)) {
-    val = regs.QRX_CONTEXT0[(addr - QRX_CONTEXT(0,0)) / 4];
-  // } else if (addr >= I40E_QTX_TAIL(0) &&
-  //            addr <= I40E_QTX_TAIL(NUM_QUEUES - 1)) {
-  //   val = regs.qtx_tail[(addr - I40E_QTX_TAIL(0)) / 4];
-  // } else if (addr >= I40E_QTX_CTL(0) && addr <= I40E_QTX_CTL(NUM_QUEUES - 1)) {
-  //   val = regs.qtx_ctl[(addr - I40E_QTX_CTL(0)) / 4];
+             addr <= QINT_TQCTL(2048 - 1)) {
+    val = regs.qint_tqctl[(addr - QINT_TQCTL(0)) / 4];
   } else if (addr >= QINT_RQCTL(0) &&
              addr <= QINT_RQCTL(2047)) {
     val = regs.qint_rqctl[(addr - QINT_RQCTL(0)) / 4];
   } else if (addr >= QRX_CTRL(0) && addr <= QRX_CTRL(2047)) {
     val = regs.QRX_CTRL[(addr - QRX_CTRL(0)) / 4];
   } else if (addr >= QRX_TAIL(0) &&
-             addr <= QRX_TAIL(NUM_QUEUES - 1)) {
+             addr <= QRX_TAIL(2048 - 1)) {
     val = regs.qrx_tail[(addr - QRX_TAIL(0)) / 4];
   } else if (addr >= GLINT_ITR(0, 0) && addr <= GLINT_ITR(0, 2047)) {
-    val = regs.GLINT_ITR0[(addr - GLINT_ITR(0,0)) / 4];
+    val = regs.GLINT_ITR0[(addr - GLINT_ITR(0,0))];
   } else if (addr >= GLINT_ITR(1, 0) && addr <= GLINT_ITR(1, 2047)) {
-    val = regs.GLINT_ITR1[(addr - GLINT_ITR(1,0)) / 4];
+    val = regs.GLINT_ITR1[(addr - GLINT_ITR(1,0))];
   } else if (addr >= GLINT_ITR(2, 0) && addr <= GLINT_ITR(2, 2047)) {
-    val = regs.GLINT_ITR2[(addr - GLINT_ITR(2,0)) / 4];
-  } else if (addr >= QRX_CONTEXT(0, 0) && addr <= QRX_CONTEXT(0, 2047)) {
-    val = regs.QRX_CONTEXT0[(addr - QRX_CONTEXT(0,0)) / 4];
-  } else if (addr >= QRX_CONTEXT(1, 0) && addr <= QRX_CONTEXT(1, 2047)) {
-    val = regs.QRX_CONTEXT1[(addr - QRX_CONTEXT(1,0)) / 4];
-  } else if (addr >= QRX_CONTEXT(2, 0) && addr <= QRX_CONTEXT(2, 2047)) {
-    val = regs.QRX_CONTEXT2[(addr - QRX_CONTEXT(2,0)) / 4];
-  } else if (addr >= QRX_CONTEXT(3, 0) && addr <= QRX_CONTEXT(3, 2047)) {
-    val = regs.QRX_CONTEXT3[(addr - QRX_CONTEXT(3,0)) / 4];
-  } else if (addr >= QRX_CONTEXT(4, 0) && addr <= QRX_CONTEXT(4, 2047)) {
-    val = regs.QRX_CONTEXT4[(addr - QRX_CONTEXT(4,0)) / 4];
-  } else if (addr >= QRX_CONTEXT(5, 0) && addr <= QRX_CONTEXT(5, 2047)) {
-    val = regs.QRX_CONTEXT5[(addr - QRX_CONTEXT(5,0)) / 4];
-  } else if (addr >= QRX_CONTEXT(6, 0) && addr <= QRX_CONTEXT(6, 2047)) {
-    val = regs.QRX_CONTEXT6[(addr - QRX_CONTEXT(6,0)) / 4];
-  } else if (addr >= QRX_CONTEXT(7, 0) && addr <= QRX_CONTEXT(7, 2047)) {
-    val = regs.QRX_CONTEXT7[(addr - QRX_CONTEXT(7,0)) / 4];
+    val = regs.GLINT_ITR2[(addr - GLINT_ITR(2,0))];
+  } else if (addr >= QRX_CONTEXT(0, 0) && addr <= QRX_CONTEXT(0, 0)) {
+    std::cout << "reading qrx context..." << logger::endl;
+    std::cout<< "reading QRX_CONTEXT(0,0)" << logger::endl;
+    val = regs.QRX_CONTEXT[(addr - QRX_CONTEXT(0,0))/8192];
+  } else if (addr >= QRX_CONTEXT(1, 0) && addr <= QRX_CONTEXT(1, 0)) {
+    std::cout<< "reading QRX_CONTEXT(1,0)" << logger::endl;
+    val = regs.QRX_CONTEXT[(addr - QRX_CONTEXT(1,0))/8192];
+    } else if (addr >= QRX_CONTEXT(2, 0) && addr <= QRX_CONTEXT(2, 0)) {
+    std::cout<< "reading QRX_CONTEXT(2,0)" << logger::endl;
+    val = regs.QRX_CONTEXT[(addr - QRX_CONTEXT(2,0))/8192];
+    } else if (addr >= QRX_CONTEXT(3, 0) && addr <= QRX_CONTEXT(3, 0)) {
+    std::cout<< "reading QRX_CONTEXT(3,0)" << logger::endl;
+    val = regs.QRX_CONTEXT[(addr - QRX_CONTEXT(3,0))/8192];
+    } else if (addr >= QRX_CONTEXT(4, 0) && addr <= QRX_CONTEXT(4, 0)) {
+    val = regs.QRX_CONTEXT[(addr - QRX_CONTEXT(4,0))/8192];
+    } else if (addr >= QRX_CONTEXT(5, 0) && addr <= QRX_CONTEXT(5, 0)) {
+    val = regs.QRX_CONTEXT[(addr - QRX_CONTEXT(5,0))/8192];
+    } else if (addr >= QRX_CONTEXT(6, 0) && addr <= QRX_CONTEXT(6, 0)) {
+    val = regs.QRX_CONTEXT[(addr - QRX_CONTEXT(6,0))/8192];
+    } else if (addr >= QRX_CONTEXT(7, 0) && addr <= QRX_CONTEXT(7, 0)) {
+    // QRX_CONTEXT[(addr - QRX_CONTEXT(7,0))/8192] = val;
+    val = regs.QRX_CONTEXT[(addr - QRX_CONTEXT(7,0))/8192];
   } else if (addr >= QRXFLXP_CNTXT(0) && addr <= QRXFLXP_CNTXT(2047)) {
     val = regs.QRXFLXP_CNTXT[(addr - QRXFLXP_CNTXT(0)) / 4];
-  // } else if (addr >= I40E_GLHMC_LANTXBASE(0) &&
-  //            addr <= I40E_GLHMC_LANTXBASE(I40E_GLHMC_LANTXBASE_MAX_INDEX)) {
-  //   val = regs.glhmc_lantxbase[(addr - I40E_GLHMC_LANTXBASE(0)) / 4];
-  // } else if (addr >= I40E_GLHMC_LANTXCNT(0) &&
-  //            addr <= I40E_GLHMC_LANTXCNT(I40E_GLHMC_LANTXCNT_MAX_INDEX)) {
-  //   val = regs.glhmc_lantxcnt[(addr - I40E_GLHMC_LANTXCNT(0)) / 4];
-  // } else if (addr >= I40E_GLHMC_LANRXBASE(0) &&
-  //            addr <= I40E_GLHMC_LANRXBASE(I40E_GLHMC_LANRXBASE_MAX_INDEX)) {
-  //   val = regs.glhmc_lanrxbase[(addr - I40E_GLHMC_LANRXBASE(0)) / 4];
-  // } else if (addr >= I40E_GLHMC_LANRXCNT(0) &&
-  //            addr <= I40E_GLHMC_LANRXCNT(I40E_GLHMC_LANRXCNT_MAX_INDEX)) {
-  //   val = regs.glhmc_lanrxcnt[(addr - I40E_GLHMC_LANRXCNT(0)) / 4];
-  // } else if (addr >= I40E_PFQF_HKEY(0) &&
-  //            addr <= I40E_PFQF_HKEY(I40E_PFQF_HKEY_MAX_INDEX)) {
-  //   val = regs.pfqf_hkey[(addr - I40E_PFQF_HKEY(0)) / 128];
-  // } else if (addr >= I40E_PFQF_HLUT(0) &&
-  //            addr <= I40E_PFQF_HLUT(I40E_PFQF_HLUT_MAX_INDEX)) {
-  //   val = regs.pfqf_hlut[(addr - I40E_PFQF_HLUT(0)) / 128];
-  // } else if (addr >= I40E_PFINT_ITRN(0, 0) &&
-  //            addr <= I40E_PFINT_ITRN(0, NUM_PFINTS - 1)) {
-  //   val = regs.pfint_itrn[0][(addr - I40E_PFINT_ITRN(0, 0)) / 4];
-  // } else if (addr >= I40E_PFINT_ITRN(1, 0) &&
-  //            addr <= I40E_PFINT_ITRN(1, NUM_PFINTS - 1)) {
-  //   val = regs.pfint_itrn[1][(addr - I40E_PFINT_ITRN(1, 0)) / 4];
-  // } else if (addr >= I40E_PFINT_ITRN(2, 0) &&
-  //            addr <= I40E_PFINT_ITRN(2, NUM_PFINTS - 1)) {
-  //   val = regs.pfint_itrn[2][(addr - I40E_PFINT_ITRN(2, 0)) / 4];
   } else if (addr >= GLFLXP_RXDID_FLX_WRD_0(0) &&
              addr <= GLFLXP_RXDID_FLX_WRD_0(63)){
     size_t idx = (addr - GLFLXP_RXDID_FLX_WRD_0(0)) / 4;
@@ -664,32 +626,72 @@ uint32_t i40e_bm::reg_mem_read32(uint64_t addr) {
       //   break;
 
       default:
-        printf("reg: unhandled mem read addr= %lx with val %d \n", addr, val);
+        // printf("reg: unhandled mem read addr= %lx with val %d \n", addr, val);
 #ifdef DEBUG_DEV
         std::cout << "unhandled mem read addr=" << addr << logger::endl;
 #endif
         break;
     }
   }
-  printf("reg: read from %lx with val %d \n", addr, val);
+  // printf("reg: read from %lx with val %d \n", addr, val);
   return val;
 }
 
 void i40e_bm::reg_mem_write32(uint64_t addr, uint32_t val) {
-  printf("reg: writing to %lx with val %d \n", addr, val);
+  std::cout<<"reg: writing to "<<addr<< "with val" << val <<logger::endl;
   if (addr >= GLINT_DYN_CTL(0) &&
       addr <= GLINT_DYN_CTL(NUM_PFINTS - 1)) {
     regs.pfint_dyn_ctln[(addr - GLINT_DYN_CTL(0)) / 4] = val;
-  } else if (addr >= QTX_COMM_HEAD(0) &&
-             addr <= QTX_COMM_HEAD(16383)) 
-  {
-    regs.qtx_comm_head[(addr - QTX_COMM_HEAD(0)) / 4] = val;
-  // } else if (addr >= I40E_PFINT_RATEN(0) &&
-  //            addr <= I40E_PFINT_RATEN(NUM_PFINTS - 1)) {
-  //   regs.pfint_raten[(addr - I40E_PFINT_RATEN(0)) / 4] = val;
-  // } else if (addr >= I40E_GLLAN_TXPRE_QDIS(0) &&
-  //            addr <= I40E_GLLAN_TXPRE_QDIS(11)) {
-  //   regs.gllan_txpre_qdis[(addr - I40E_GLLAN_TXPRE_QDIS(0)) / 4] = val;
+  } else if (addr >= QTX_COMM_DBELL(0) && addr <= QTX_COMM_DBELL(2047)){
+      size_t idx = (addr - QTX_COMM_DBELL(0))/4;
+      regs.QTX_COMM_DBELL[idx] = val;
+      regs.qtx_tail[idx] = val;
+      std::cout << "tx update tail" << logger::endl;
+      lanmgr.tail_updated(idx, false);
+  } else if (addr >= QRX_TAIL(0) &&
+             addr <= QRX_TAIL(256 - 1)) {
+    
+    // if (val == 2040)
+    // {
+    //   regs.qrx_tail[idx] = 0 & QRX_TAIL_TAIL_M;
+    // }
+    // else {
+      
+    // }
+    // if (val == 2040)
+    //   val = 0;
+    
+    // if (regs.qrx_ena)
+    // {
+    
+      size_t idx = (addr - QRX_TAIL(0)) / 4;
+    std::cout << "idx: "<<idx<<logger::endl;
+      regs.qrx_tail[idx] = val & QRX_TAIL_TAIL_M;
+      std::cout << "updating qrx tailgb: "<<regs.qrx_tail[idx]<<logger::endl;
+      std::cout << "qrx_ena: "<<regs.qrx_ena[idx]<<logger::endl;
+      // if (regs.qrx_ena[idx])
+      // {
+        lanmgr.tail_updated(idx, true);
+      // }
+      
+      
+    // }
+    
+    
+    
+    
+  } else if (addr >= QRX_CTRL(0) && addr <= QRX_CTRL(2047)){
+    size_t idx = (addr - QRX_CTRL(0)) / 4;
+    regs.QRX_CTRL[idx] = val+4;
+    regs.qrx_ena[idx] = val;
+    regs.qrx_tail[idx] = 1;
+    std::cout << "queue update: qrx_ena: " << regs.qrx_ena[idx]<< logger::endl;
+    lanmgr.qena_updated(idx, true);
+  // }
+  // else if (addr >= QTX_COMM_HEAD(0) &&
+  //            addr <= QTX_COMM_HEAD(2047)) 
+  // {
+  //   regs.qtx_comm_head[(addr - QTX_COMM_HEAD(0)) / 4] = val;
   } else if (addr >= PF0INT_ITR_0(0) &&
              addr <= PF0INT_ITR_0(2047)) {
     regs.pfint_itrn[0][(addr - PF0INT_ITR_0(0)) / 4096] = val;
@@ -700,86 +702,48 @@ void i40e_bm::reg_mem_write32(uint64_t addr, uint32_t val) {
              addr <= PF0INT_ITR_2(2047)) {
     regs.pfint_itrn[2][(addr - PF0INT_ITR_2(0)) / 4096] = val;
   }else if (addr >= QINT_TQCTL(0) &&
-             addr <= QINT_TQCTL(NUM_QUEUES - 1)) {
+             addr <= QINT_TQCTL(16383)) {
     size_t idx = (addr - QINT_TQCTL(0)) / 4;
     regs.qint_tqctl[idx] = val;
-    regs.qtx_ena[(addr - QINT_TQCTL(0)) / 4] = val;
+    regs.qtx_ena[idx] = val;
     lanmgr.qena_updated(idx, false);
-  // } else if (addr >= I40E_QTX_ENA(0) && addr <= I40E_QTX_ENA(NUM_QUEUES - 1)) {
-  //   size_t idx = (addr - I40E_QTX_ENA(0)) / 4;
-  //   regs.qtx_ena[idx] = val;
-  //   lanmgr.qena_updated(idx, false);
-  // } else if (addr >= I40E_QTX_TAIL(0) &&
-  //            addr <= I40E_QTX_TAIL(NUM_QUEUES - 1)) {
-  //   size_t idx = (addr - I40E_QTX_TAIL(0)) / 4;
-  //   regs.qtx_tail[idx] = val;
-  //   lanmgr.tail_updated(idx, false);
-  // } else if (addr >= I40E_QTX_CTL(0) && addr <= I40E_QTX_CTL(NUM_QUEUES - 1)) {
-  //   regs.qtx_ctl[(addr - I40E_QTX_CTL(0)) / 4] = val;
   } else if (addr >= QINT_RQCTL(0) &&
              addr <= QINT_RQCTL(2048 - 1)) {
-    regs.qint_rqctl[(addr - QINT_RQCTL(0)) / 4] = val;
-  // } else if (addr >= I40E_QRX_ENA(0) && addr <= I40E_QRX_ENA(NUM_QUEUES - 1)) {
-  //   size_t idx = (addr - I40E_QRX_ENA(0)) / 4;
-  //   regs.qrx_ena[idx] = val;
-  //   lanmgr.qena_updated(idx, true);
-  } else if (addr >= QRX_TAIL(0) &&
-             addr <= QRX_TAIL(NUM_QUEUES - 1)) {
-    size_t idx = (addr - QRX_TAIL(0)) / 4;
-    regs.qrx_tail[idx] = val;
-    lanmgr.tail_updated(idx, true);
+    size_t idx = (addr - QINT_RQCTL(0)) / 4;          
+    regs.qint_rqctl[idx] = val;
+  
   } else if (addr >= GLINT_ITR(0, 0) && addr <= GLINT_ITR(0, 2047)) {
-    regs.GLINT_ITR0[(addr - GLINT_ITR(0,0)) / 4] = val;
+    regs.GLINT_ITR0[(addr - GLINT_ITR(0,0))] = val;
   } else if (addr >= GLINT_ITR(1, 0) && addr <= GLINT_ITR(1, 2047)) {
-    regs.GLINT_ITR1[(addr - GLINT_ITR(1,0)) / 4] = val;
+    regs.GLINT_ITR1[(addr - GLINT_ITR(1,0))] = val;
   } else if (addr >= GLINT_ITR(2, 0) && addr <= GLINT_ITR(2, 2047)) {
-    regs.GLINT_ITR2[(addr - GLINT_ITR(2,0)) / 4] = val;
-  } else if (addr >= QRX_CONTEXT(0, 0) && addr <= QRX_CONTEXT(0, 2047)) {
-    regs.QRX_CONTEXT0[(addr - QRX_CONTEXT(0,0)) / 4] = val;
-  } else if (addr >= QRX_CONTEXT(1, 0) && addr <= QRX_CONTEXT(1, 2047)) {
-    regs.QRX_CONTEXT1[(addr - QRX_CONTEXT(1,0)) / 4] = val;
-  } else if (addr >= QRX_CONTEXT(2, 0) && addr <= QRX_CONTEXT(2, 2047)) {
-    regs.QRX_CONTEXT2[(addr - QRX_CONTEXT(2,0)) / 4] = val;
-  } else if (addr >= QRX_CONTEXT(3, 0) && addr <= QRX_CONTEXT(3, 2047)) {
-    regs.QRX_CONTEXT3[(addr - QRX_CONTEXT(3,0)) / 4] = val;
-  } else if (addr >= QRX_CONTEXT(4, 0) && addr <= QRX_CONTEXT(4, 2047)) {
-    regs.QRX_CONTEXT4[(addr - QRX_CONTEXT(4,0)) / 4] = val;
-  } else if (addr >= QRX_CONTEXT(5, 0) && addr <= QRX_CONTEXT(5, 2047)) {
-    regs.QRX_CONTEXT5[(addr - QRX_CONTEXT(5,0)) / 4] = val;
-  } else if (addr >= QRX_CONTEXT(6, 0) && addr <= QRX_CONTEXT(6, 2047)) {
-    regs.QRX_CONTEXT6[(addr - QRX_CONTEXT(6,0)) / 4] = val;
-  } else if (addr >= QRX_CONTEXT(7, 0) && addr <= QRX_CONTEXT(7, 2047)) {
-    regs.QRX_CONTEXT7[(addr - QRX_CONTEXT(7,0)) / 4] = val;
+    regs.GLINT_ITR2[(addr - GLINT_ITR(2,0))] = val;
+  } else if (addr >= QRX_CONTEXT(0, 0) && addr <= QRX_CONTEXT(0, 0)) {
+    std::cout<< "QRX_CONTEXT(0,0)" << logger::endl;
+    regs.QRX_CONTEXT[(addr - QRX_CONTEXT(0,0))/8192] = val;
+    std::cout<< "QRX_CONTEXT(0,0) reg id "<< ((addr - QRX_CONTEXT(0,0))/8192) << logger::endl;
+    std::cout<< "QRX_CONTEXT(0,0) val"<< regs.QRX_CONTEXT[(addr - QRX_CONTEXT(0,0))/8192] << logger::endl;
+  } else if (addr >= QRX_CONTEXT(1, 0) && addr <= QRX_CONTEXT(1, 0)) {
+    std::cout<< "QRX_CONTEXT(1,0)" << logger::endl;
+    std::cout<< "QRX_CONTEXT(0,0) reg id "<< ((addr - QRX_CONTEXT(0,0))/8192) << logger::endl;
+    regs.QRX_CONTEXT[(addr - QRX_CONTEXT(0,0))/8192] = val;
+    } else if (addr >= QRX_CONTEXT(2, 0) && addr <= QRX_CONTEXT(2, 0)) {
+    std::cout<< "QRX_CONTEXT(2,0)" << logger::endl;
+    regs.QRX_CONTEXT[(addr - QRX_CONTEXT(0,0))/8192] = val;
+    } else if (addr >= QRX_CONTEXT(3, 0) && addr <= QRX_CONTEXT(3, 0)) {
+    std::cout<< "QRX_CONTEXT(3,0)" << logger::endl;
+    regs.QRX_CONTEXT[(addr - QRX_CONTEXT(0,0))/8192] = val;
+    } else if (addr >= QRX_CONTEXT(4, 0) && addr <= QRX_CONTEXT(4, 0)) {
+    regs.QRX_CONTEXT[(addr - QRX_CONTEXT(4,0))/8192] = val;
+    } else if (addr >= QRX_CONTEXT(5, 0) && addr <= QRX_CONTEXT(5, 0)) {
+    regs.QRX_CONTEXT[(addr - QRX_CONTEXT(0,0))/8192] = val;
+    } else if (addr >= QRX_CONTEXT(6, 0) && addr <= QRX_CONTEXT(6, 0)) {
+    regs.QRX_CONTEXT[(addr - QRX_CONTEXT(0,0))/8192] = val;
+    } else if (addr >= QRX_CONTEXT(7, 0) && addr <= QRX_CONTEXT(7, 0)) {
+    // QRX_CONTEXT[(addr - QRX_CONTEXT(7,0))/8192] = val;
+    regs.QRX_CONTEXT[(addr - QRX_CONTEXT(0,0))/8192] = val;
   } else if (addr >= QRXFLXP_CNTXT(0) && addr <= QRXFLXP_CNTXT(2047)) {
     regs.QRXFLXP_CNTXT[(addr - QRXFLXP_CNTXT(0)) / 4] = val;
-  // } else if (addr >= I40E_GLHMC_LANTXBASE(0) &&
-  //            addr <= I40E_GLHMC_LANTXBASE(I40E_GLHMC_LANTXBASE_MAX_INDEX)) {
-  //   regs.glhmc_lantxbase[(addr - I40E_GLHMC_LANTXBASE(0)) / 4] = val;
-  // } else if (addr >= I40E_GLHMC_LANTXCNT(0) &&
-  //            addr <= I40E_GLHMC_LANTXCNT(I40E_GLHMC_LANTXCNT_MAX_INDEX)) {
-  //   regs.glhmc_lantxcnt[(addr - I40E_GLHMC_LANTXCNT(0)) / 4] = val;
-  // } else if (addr >= I40E_GLHMC_LANRXBASE(0) &&
-  //            addr <= I40E_GLHMC_LANRXBASE(I40E_GLHMC_LANRXBASE_MAX_INDEX)) {
-  //   regs.glhmc_lanrxbase[(addr - I40E_GLHMC_LANRXBASE(0)) / 4] = val;
-  // } else if (addr >= I40E_GLHMC_LANRXCNT(0) &&
-  //            addr <= I40E_GLHMC_LANRXCNT(I40E_GLHMC_LANRXCNT_MAX_INDEX)) {
-  //   regs.glhmc_lanrxcnt[(addr - I40E_GLHMC_LANRXCNT(0)) / 4] = val;
-  // } else if (addr >= I40E_PFQF_HKEY(0) &&
-  //            addr <= I40E_PFQF_HKEY(I40E_PFQF_HKEY_MAX_INDEX)) {
-  //   regs.pfqf_hkey[(addr - I40E_PFQF_HKEY(0)) / 128] = val;
-  //   lanmgr.rss_key_updated();
-  // } else if (addr >= I40E_PFQF_HLUT(0) &&
-  //            addr <= I40E_PFQF_HLUT(I40E_PFQF_HLUT_MAX_INDEX)) {
-  //   regs.pfqf_hlut[(addr - I40E_PFQF_HLUT(0)) / 128] = val;
-  // } else if (addr >= I40E_PFINT_ITRN(0, 0) &&
-  //            addr <= I40E_PFINT_ITRN(0, NUM_PFINTS - 1)) {
-  //   regs.pfint_itrn[0][(addr - I40E_PFINT_ITRN(0, 0)) / 4] = val;
-  // } else if (addr >= I40E_PFINT_ITRN(1, 0) &&
-  //            addr <= I40E_PFINT_ITRN(1, NUM_PFINTS - 1)) {
-  //   regs.pfint_itrn[1][(addr - I40E_PFINT_ITRN(1, 0)) / 4] = val;
-  // } else if (addr >= I40E_PFINT_ITRN(2, 0) &&
-  //            addr <= I40E_PFINT_ITRN(2, NUM_PFINTS - 1)) {
-  //   regs.pfint_itrn[2][(addr - I40E_PFINT_ITRN(2, 0)) / 4] = val;
   } else if (addr >= GLFLXP_RXDID_FLX_WRD_0(0) &&
              addr <= GLFLXP_RXDID_FLX_WRD_0(63)){
     size_t idx = (addr - GLFLXP_RXDID_FLX_WRD_0(0)) / 4;
@@ -796,11 +760,7 @@ void i40e_bm::reg_mem_write32(uint64_t addr, uint32_t val) {
              addr <= GLFLXP_RXDID_FLX_WRD_3(63)){
     size_t idx = (addr - GLFLXP_RXDID_FLX_WRD_3(0)) / 4;
     regs.flex_rxdid_3[idx] = val;
-  } else if (addr >= QRX_CTRL(0) && addr <= QRX_CTRL(2047)){
-    size_t idx = (addr - QRX_CTRL(0)) / 4;
-    regs.qrx_ena[idx] = val;
-    lanmgr.qena_updated(idx, true);
-    std::cout <<"write to ARX CTL with val "<<val<< logger::endl;
+
   } else if (addr >= GLPRT_BPRCL(0) && addr <= GLPRT_BPRCL(7)){
     size_t idx = (addr - GLPRT_BPRCL(0))/8;
     regs.GLPRT_BPRCL[idx] = val;
@@ -939,12 +899,7 @@ void i40e_bm::reg_mem_write32(uint64_t addr, uint32_t val) {
     } else if (addr >= GLV_UPTCL(0) && addr <= GLV_UPTCL(7)){
     size_t idx = (addr - GLV_UPTCL(0))/8;
     regs.GLV_UPTCL[idx] = val;
-    } else if (addr >= QTX_COMM_DBELL(0) && addr <= QTX_COMM_DBELL(16384)){
-      size_t idx = (addr - QTX_COMM_DBELL(0))/8;
-      regs.QTX_COMM_DBELL[idx] = val;
-      lanmgr.tail_updated(idx, false);
-    
-  }else {
+    } else {
     switch (addr) {
       case PFGEN_CTRL:
         if ((val & PFGEN_CTRL_PFSWR_M) == PFGEN_CTRL_PFSWR_M)
@@ -1119,7 +1074,7 @@ void i40e_bm::reg_mem_write32(uint64_t addr, uint32_t val) {
       //   regs.glrpb_plw = val;
       //   break;
       default:
-        printf("reg: unhandled mem write addr= %lx with val %d \n", addr, val);
+        std::cout<<"reg: unhandled mem write addr=" <<addr << " val= "<<val <<logger::endl;
 #ifdef DEBUG_DEV
         std::cout << "unhandled mem write addr=" << addr << " val=" << val
             << logger::endl;
@@ -1154,9 +1109,11 @@ void i40e_bm::SignalInterrupt(uint16_t vec, uint8_t itr) {
   if (itr <= 2) {
     // itr 0-2
     if (vec == 0)
-      mindelay = regs.pfint_itrn[0][itr];
+      mindelay = regs.GLINT_ITR0[itr];
+    else if (vec == 1)
+      mindelay = regs.GLINT_ITR1[itr];
     else
-      mindelay = regs.pfint_itrn[itr][vec];
+      mindelay = regs.GLINT_ITR2[itr];
     mindelay *= 2000000ULL;
   } else if (itr == 3) {
     // noitr

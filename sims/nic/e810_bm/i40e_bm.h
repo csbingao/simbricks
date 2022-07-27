@@ -36,10 +36,11 @@ extern "C" {
 #include "sims/nic/e810_bm/i40e_base_wrapper.h"
 
 #define DEBUG_DEV
-#define DEBUG_ADMINQ
+// #define DEBUG_ADMINQ
 #define DEBUG_LAN
-#define DEBUG_HMC
+// #define DEBUG_HMC
 #define DEBUG_QUEUES
+// #define DEBUG_NICBM
 
 struct i40e_aq_desc;
 struct i40e_tx_desc;
@@ -332,7 +333,7 @@ class lan_queue_base : public queue_base {
 
   lan &lanmgr;
 
-  void ctx_fetched();
+  void ctx_fetched(bool rx);
   void ctx_written_back();
 
   virtual void interrupt();
@@ -346,6 +347,7 @@ class lan_queue_base : public queue_base {
   uint32_t &reg_intqctl;
   size_t ctx_size;
   void *ctx;
+  
 
   uint32_t reg_dummy_head;
 
@@ -353,7 +355,7 @@ class lan_queue_base : public queue_base {
                  size_t idx_, uint32_t &reg_ena_, uint32_t &fpm_basereg,
                  uint32_t &reg_intqctl, uint16_t ctx_size);
   virtual void reset();
-  void enable();
+  void enable(bool rx);
   void disable();
 };
 
@@ -518,6 +520,10 @@ class i40e_bm : public nicbm::Runner::Device {
   static const uint16_t MAX_MTU = 2048;
   static const uint8_t NUM_ITR = 3;
   static const uint32_t NUM_RXDID = 64;
+  uint32_t QRX_CONTEXT[8192*4];
+  uint32_t ctx[8];
+
+  
 
   struct i40e_regs {
     uint32_t glgen_rstctl;
@@ -539,13 +545,13 @@ class i40e_bm : public nicbm::Runner::Device {
     uint32_t glnvm_srctl;
     uint32_t glnvm_srdata;
 
-    uint32_t qint_tqctl[2048];
-    uint32_t qtx_ena[NUM_QUEUES];
+    uint32_t qint_tqctl[NUM_QUEUES];
+    uint32_t qtx_ena[2048];
     uint32_t qtx_tail[NUM_QUEUES];
     uint32_t qtx_ctl[NUM_QUEUES];
-    uint32_t qint_rqctl[2048];
-    uint32_t qrx_ena[NUM_QUEUES];
-    uint32_t qrx_tail[NUM_QUEUES];
+    uint32_t qint_rqctl[NUM_QUEUES];
+    uint32_t qrx_ena[2048];
+    uint32_t qrx_tail[2048];
 
     uint32_t glhmc_lantxbase[16];
     uint32_t glhmc_lantxcnt[16];
@@ -602,16 +608,18 @@ class i40e_bm : public nicbm::Runner::Device {
     uint32_t flex_rxdid_2[NUM_RXDID];
     uint32_t flex_rxdid_3[NUM_RXDID];
     uint32_t QRX_CTRL[2048];
-    uint32_t QRX_CONTEXT0[2048];
-    uint32_t QRX_CONTEXT1[2048];
-    uint32_t QRX_CONTEXT2[2048];
-    uint32_t QRX_CONTEXT3[2048];
-    uint32_t QRX_CONTEXT4[2048];
-    uint32_t QRX_CONTEXT5[2048];
-    uint32_t QRX_CONTEXT6[2048];
-    uint32_t QRX_CONTEXT7[2048];
+    
+    // uint32_t QRX_CONTEXT1[2048];
+    // uint32_t QRX_CONTEXT2[2048];
+    // uint32_t QRX_CONTEXT3[2048];
+    // uint32_t QRX_CONTEXT4[2048];
+    // uint32_t QRX_CONTEXT5[2048];
+    // uint32_t QRX_CONTEXT6[2048];
+    // uint32_t QRX_CONTEXT7[2048];
     uint32_t QRXFLXP_CNTXT[2048];
-    uint32_t qtx_comm_head[16384];
+    uint32_t qtx_comm_head[NUM_QUEUES];
+
+    uint32_t QRX_CONTEXT[8];
 
     uint32_t GLINT_ITR0[2048];
     uint32_t GLINT_ITR1[2048];
@@ -669,7 +677,7 @@ class i40e_bm : public nicbm::Runner::Device {
     uint32_t GLV_UPRCL[768];
     uint32_t GLV_UPTCL[768];
 
-    uint32_t QTX_COMM_DBELL[16384];
+    uint32_t QTX_COMM_DBELL[NUM_QUEUES];
     // uint32_t glprt_bptcl[8];
     // uint32_t glprt_crcerrs[8];
     // uint32_t glprt_gorcl[8];
@@ -701,6 +709,10 @@ class i40e_bm : public nicbm::Runner::Device {
   host_mem_cache hmc;
   shadow_ram shram;
   lan lanmgr;
+
+  u8 ctx_addr[4][22];
+
+
 
   struct ice_aqc_get_topo_elem topo_elem;
   int_ev intevs[NUM_PFINTS];
