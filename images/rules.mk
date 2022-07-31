@@ -51,6 +51,7 @@ kheader_tar := $(d)kheaders.tar.bz2
 mqnic_dir := $(d)mqnic
 mqnic_mod := $(mqnic_dir)/mqnic.ko
 m5_bin := $(d)m5
+ice_pkg := $(d)ice.pkg
 guest_init := $(d)/scripts/guestinit.sh
 
 build-images: $(IMAGES) $(RAW_IMAGES) $(vmlinux) $(bz_image) $(mqnic_mod)
@@ -76,7 +77,7 @@ $(BASE_IMAGE): $(packer) $(QEMU) $(bz_image) $(m5_bin) $(kheader_tar) \
       scripts/cleanup.sh)
 	rm -rf $(dir $@)
 	mkdir -p $(img_dir)/input-base
-	cp $(m5_bin) $(kheader_tar) $(guest_init) $(bz_image) $(kernel_config) \
+	cp $(m5_bin) $(kheader_tar) $(guest_init) $(bz_image) $(kernel_config) $(ice_pkg) \
 	    $(img_dir)/input-base/
 	cd $(img_dir) && ./packer-wrap.sh base base base.pkr.hcl \
 	    $(COMPRESSED_IMAGES)

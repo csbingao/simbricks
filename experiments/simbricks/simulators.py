@@ -411,6 +411,11 @@ class I40eNIC(NICSim):
     def run_cmd(self, env):
         return self.basic_run_cmd(env, '/i40e_bm/i40e_bm')
 
+class E810NIC(NICSim):
+
+    def run_cmd(self, env):
+        return self.basic_run_cmd(env, '/e810_bm/i40e_bm')
+
 
 class E1000NIC(NICSim):
 

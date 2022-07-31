@@ -165,6 +165,10 @@ class I40eLinuxNode(LinuxNode):
         super().__init__()
         self.drivers.append('i40e')
 
+class E810LinuxNode(LinuxNode):
+    def __init__(self):
+        super().__init__()
+        self.drivers.append('ice')
 
 class CorundumLinuxNode(LinuxNode):
 

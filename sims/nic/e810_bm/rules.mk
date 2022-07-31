@@ -22,10 +22,15 @@
 
 include mk/subdir_pre.mk
 
-$(eval $(call subdir,corundum))
-$(eval $(call subdir,corundum_bm))
-$(eval $(call subdir,e1000_gem5))
-$(eval $(call subdir,i40e_bm))
-$(eval $(call subdir,e810_bm))
+bin_e810_bm := $(d)i40e_bm
 
+OBJS := $(addprefix $(d),i40e_bm.o i40e_queues.o i40e_adminq.o i40e_hmc.o \
+    i40e_lan.o xsums.o rss.o logger.o)
+
+$(OBJS): CPPFLAGS := $(CPPFLAGS) -I$(d)include/
+
+$(bin_e810_bm):$(OBJS) $(lib_nicbm) $(lib_nicif) $(lib_netif) $(lib_pcie) \
+    $(lib_base) -lboost_fiber -lboost_context -lpthread
+CLEAN := $(bin_e810_bm) $(OBJS)
+ALL := $(bin_e810_bm)
 include mk/subdir_post.mk
