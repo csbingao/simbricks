@@ -526,7 +526,6 @@ uint32_t i40e_bm::reg_mem_read32(uint64_t addr) {
 }
 
 void i40e_bm::reg_mem_write32(uint64_t addr, uint32_t val) {
-  std::cout<<"reg: writing to "<<addr<< "with val" << val <<logger::endl;
   if (addr >= GLINT_DYN_CTL(0) &&
       addr <= GLINT_DYN_CTL(NUM_PFINTS - 1)) {
     regs.pfint_dyn_ctln[(addr - GLINT_DYN_CTL(0)) / 4] = val;
@@ -534,7 +533,6 @@ void i40e_bm::reg_mem_write32(uint64_t addr, uint32_t val) {
       size_t idx = (addr - QTX_COMM_DBELL(0))/4;
       regs.QTX_COMM_DBELL[idx] = val;
       regs.qtx_tail[idx] = val;
-      std::cout << "tx update tail" << logger::endl;
       lanmgr.tail_updated(idx, false);
   } else if (addr >= QRX_TAIL(0) &&
              addr <= QRX_TAIL(256 - 1)) {
