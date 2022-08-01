@@ -49,7 +49,7 @@ i40e_bm::~i40e_bm() {
 }
 
 void i40e_bm::SetupIntro(struct SimbricksProtoPcieDevIntro &di) {
-  di.bars[BAR_REGS].len = 1024 * 1024 * 1024;
+  di.bars[BAR_REGS].len = 64 * 1024 * 1024;
   di.bars[BAR_REGS].flags = SIMBRICKS_PROTO_PCIE_BAR_64;
   di.bars[BAR_IO].len = 32;
   di.bars[BAR_IO].flags = SIMBRICKS_PROTO_PCIE_BAR_IO;

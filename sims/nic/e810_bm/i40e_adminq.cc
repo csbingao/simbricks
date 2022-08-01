@@ -345,7 +345,7 @@ void queue_admin_tx::admin_desc_ctx::process() {
     get_pkg_info[0].pkg_info[0].ver.draft = 0;
     char *ice_pkg_name = (char *)malloc(ICE_PKG_NAME_SIZE*sizeof(char));
     memset(ice_pkg_name, 0, ICE_PKG_NAME_SIZE*sizeof(char));
-    char ice_pkg_name_str[ICE_PKG_NAME_SIZE] = "ICE COMMS Package";
+    char ice_pkg_name_str[ICE_PKG_NAME_SIZE] = "ICE OS Default Package";
     for (int i = 0; i <= strlen(ice_pkg_name); i++)
     {
       ice_pkg_name[i] = ice_pkg_name_str[i];
