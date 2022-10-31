@@ -570,6 +570,9 @@ enum ice_tx_ctx_desc_eipt_offload {
 #define ICE_LAN_TXQ_MAX_QGRPS	127
 #define ICE_LAN_TXQ_MAX_QDIS	1023
 
+#define ICE_ITR_GRAN_S		1	/* ITR granularity is always 2us */
+#define ICE_ITR_GRAN_US		BIT(ICE_ITR_GRAN_S)
+
 /* Tx queue context data
  *
  * The sizes of the variables may be larger than needed due to crossing byte

@@ -345,15 +345,10 @@ void queue_base::desc_ctx::data_fetched(uint64_t addr, size_t len) {
 
 void queue_base::desc_ctx::data_write(uint64_t addr, size_t data_len,
                                       const void *buf) {
-#ifdef DEBUG_QUEUES
-  std::cout << "data_write(addr=" << addr << " datalen=" << data_len << ")"
-            << logger::endl;
-#endif
   dma_data_wb *data_dma = new dma_data_wb(*this, data_len);
   data_dma->write_ = true;
   data_dma->dma_addr_ = addr;
   memcpy(data_dma->data_, buf, data_len);
-
   queue.dev.runner_->IssueDma(*data_dma);
 }
 

@@ -274,7 +274,8 @@ void lan_queue_rx::initialize() {
   
   for (int i = 0; i < 8; i++)
   { 
-    dev.ctx[i] = dev.regs.QRX_CONTEXT[i];
+    int index = QRX_CONTEXT(i, idx)-QRX_CONTEXT(0,0);
+    dev.ctx[i] = dev.regs.QRX_CONTEXT[index];
   }
   uint8_t *ctx_p = reinterpret_cast<uint8_t *>(dev.ctx);
   

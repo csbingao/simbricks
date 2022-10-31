@@ -25,9 +25,9 @@ include mk/subdir_pre.mk
 bin_e810_bm := $(d)i40e_bm
 
 OBJS := $(addprefix $(d),i40e_bm.o i40e_queues.o i40e_adminq.o i40e_hmc.o \
-    i40e_lan.o xsums.o rss.o logger.o)
+    i40e_cqp.o i40e_lan.o xsums.o rss.o logger.o)
 
-$(OBJS): CPPFLAGS := $(CPPFLAGS) -I$(d)include/
+$(OBJS): CPPFLAGS := $(CPPFLAGS) -I$(d)include/ -Iimages/kernel/kheaders/linux-5.4.46/
 
 $(bin_e810_bm):$(OBJS) $(lib_nicbm) $(lib_nicif) $(lib_netif) $(lib_pcie) \
     $(lib_base) -lboost_fiber -lboost_context -lpthread

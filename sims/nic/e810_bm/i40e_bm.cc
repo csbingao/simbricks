@@ -40,6 +40,7 @@ i40e_bm::i40e_bm()
       pf_atq(*this, regs.pf_atqba, regs.pf_atqlen, regs.pf_atqh, regs.pf_atqt),
       pf_mbx_atq(*this, regs.pf_mbx_atqba, regs.pf_mbx_atqlen, regs.pf_mbx_atqh, regs.pf_mbx_atqt),
       hmc(*this),
+      cqp(*this, regs.reg_PFPE_CCQPHIGH, regs.reg_PFPE_CCQPLOW, regs.pf_atqh, regs.pf_atqt),
       shram(*this),
       lanmgr(*this, NUM_QUEUES) {
   reset(false);
@@ -365,6 +366,7 @@ uint32_t i40e_bm::reg_mem_read32(uint64_t addr) {
     val = regs.GLV_UPTCL[idx];
   }
   else {
+    std::cout << "read others" << addr << logger::endl;
     switch (addr) {
       case GLINT_CTL:
         val = ((ICE_ITR_GRAN_US << GLINT_CTL_ITR_GRAN_200_S) &
@@ -387,6 +389,41 @@ uint32_t i40e_bm::reg_mem_read32(uint64_t addr) {
       // case I40E_GLPCI_CAPSUP:
       //   val = 0;
       //   break;
+      case PFPE_CQPDB:
+        val = regs.reg_PFPE_CQPDB;
+        break;
+
+      case GLPE_CPUSTATUS0:
+        val = 0x80;
+        break;
+      
+      case GLPE_CPUSTATUS1:
+        val = 0x80;
+        break;
+      
+      case GLPE_CPUSTATUS2:
+        val = 0x80;
+        break;
+
+      case GLPCI_LBARCTRL:
+        val = IRDMA_PE_DB_SIZE_4M << 4;
+        break;
+
+      case PFPE_CCQPHIGH:
+        val = regs.reg_PFPE_CCQPHIGH;
+        break;
+
+      case PFPE_CCQPSTATUS:
+        val = regs.reg_PFPE_CCQPSTATUS;
+        break;
+
+      case PFPE_CCQPLOW:
+        val = regs.reg_PFPE_CCQPLOW;
+        break;
+
+      case PFPE_CQPTAIL:
+        val = regs.reg_PFPE_CQPTAIL;
+        break;
 
       case GLNVM_ULD:
         val = 0xffffffff;
@@ -403,6 +440,7 @@ uint32_t i40e_bm::reg_mem_read32(uint64_t addr) {
       case GLGEN_RSTCTL:
         val = regs.glgen_rstctl;
         break;
+        
       case GLGEN_STAT:
         val = regs.glgen_stat;
         break;
@@ -570,22 +608,8 @@ void i40e_bm::reg_mem_write32(uint64_t addr, uint32_t val) {
     regs.GLINT_ITR1[(addr - GLINT_ITR(1,0))] = val;
   } else if (addr >= GLINT_ITR(2, 0) && addr <= GLINT_ITR(2, 2047)) {
     regs.GLINT_ITR2[(addr - GLINT_ITR(2,0))] = val;
-  } else if (addr >= QRX_CONTEXT(0, 0) && addr <= QRX_CONTEXT(0, 0)) {
-    regs.QRX_CONTEXT[(addr - QRX_CONTEXT(0,0))/8192] = val;
-  } else if (addr >= QRX_CONTEXT(1, 0) && addr <= QRX_CONTEXT(1, 0)) {
-    regs.QRX_CONTEXT[(addr - QRX_CONTEXT(0,0))/8192] = val;
-    } else if (addr >= QRX_CONTEXT(2, 0) && addr <= QRX_CONTEXT(2, 0)) {
-    regs.QRX_CONTEXT[(addr - QRX_CONTEXT(0,0))/8192] = val;
-    } else if (addr >= QRX_CONTEXT(3, 0) && addr <= QRX_CONTEXT(3, 0)) {
-    regs.QRX_CONTEXT[(addr - QRX_CONTEXT(0,0))/8192] = val;
-    } else if (addr >= QRX_CONTEXT(4, 0) && addr <= QRX_CONTEXT(4, 0)) {
-    regs.QRX_CONTEXT[(addr - QRX_CONTEXT(4,0))/8192] = val;
-    } else if (addr >= QRX_CONTEXT(5, 0) && addr <= QRX_CONTEXT(5, 0)) {
-    regs.QRX_CONTEXT[(addr - QRX_CONTEXT(0,0))/8192] = val;
-    } else if (addr >= QRX_CONTEXT(6, 0) && addr <= QRX_CONTEXT(6, 0)) {
-    regs.QRX_CONTEXT[(addr - QRX_CONTEXT(0,0))/8192] = val;
-    } else if (addr >= QRX_CONTEXT(7, 0) && addr <= QRX_CONTEXT(7, 0)) {
-    regs.QRX_CONTEXT[(addr - QRX_CONTEXT(0,0))/8192] = val;
+  } else if (addr >= QRX_CONTEXT(0, 0) && addr <= QRX_CONTEXT(7, 2047)) {
+    regs.QRX_CONTEXT[(addr - QRX_CONTEXT(0,0))] = val;
   } else if (addr >= QRXFLXP_CNTXT(0) && addr <= QRXFLXP_CNTXT(2047)) {
     regs.QRXFLXP_CNTXT[(addr - QRXFLXP_CNTXT(0)) / 4] = val;
   } else if (addr >= GLFLXP_RXDID_FLX_WRD_0(0) &&
@@ -744,10 +768,45 @@ void i40e_bm::reg_mem_write32(uint64_t addr, uint32_t val) {
     size_t idx = (addr - GLV_UPTCL(0))/8;
     regs.GLV_UPTCL[idx] = val;
     } else {
+      std::cout << "write others " << addr << logger::endl;
+      std::cout << "write others value " << val << logger::endl;
     switch (addr) {
+      case PFPE_CCQPSTATUS:
+        regs.reg_PFPE_CCQPSTATUS = val;
+        break;
+
+      case PFPE_CQPDB:
+        regs.reg_PFPE_CQPDB = val;
+        regs.reg_PFPE_CQPTAIL = 0x3ff & val;
+        cqp.reg_updated();
+        break;
+
+      case PFPE_CCQPHIGH:
+        regs.reg_PFPE_CCQPHIGH = val;
+        break;
+      
+      case PFPE_CCQPLOW:
+        regs.reg_PFPE_CCQPLOW = val;
+        if (val == 0){
+          regs.reg_PFPE_CCQPSTATUS = 1<<31;
+        }
+        else{
+          regs.reg_PFPE_CCQPSTATUS = 1;
+        }
+        
+        break;
+
+      case PFPE_CQPTAIL:
+        regs.reg_PFPE_CQPTAIL = val;
+        break;
+
       case PFGEN_CTRL:
         if ((val & PFGEN_CTRL_PFSWR_M) == PFGEN_CTRL_PFSWR_M)
           reset(true);
+        break;
+
+      case GLGEN_STAT:
+        regs.glgen_stat = val;
         break;
 
       case GLINT_CTL:

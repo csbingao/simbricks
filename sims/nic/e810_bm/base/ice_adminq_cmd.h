@@ -1,57 +1,26 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* Copyright (c) 2018, Intel Corporation. */
-#include <bits/stdc++.h>
+
 #ifndef _ICE_ADMINQ_CMD_H_
 #define _ICE_ADMINQ_CMD_H_
-
-/* This header file defines the Admin Queue commands, error codes and
- * descriptor format. It is shared between Firmware and Software.
- */
-/* indices into GLINT_ITR registers */
-#define ICE_RX_ITR	ICE_IDX_ITR0
-#define ICE_TX_ITR	ICE_IDX_ITR1
-#define ICE_ITR_8K	124
-#define ICE_ITR_20K	50
-#define ICE_ITR_MAX	8160
-#define ICE_DFLT_TX_ITR	(ICE_ITR_20K | ICE_ITR_DYNAMIC)
-#define ICE_DFLT_RX_ITR	(ICE_ITR_20K | ICE_ITR_DYNAMIC)
-#define ICE_ITR_DYNAMIC	0x8000  /* used as flag for itr_setting */
-#define ITR_IS_DYNAMIC(setting) (!!((setting) & ICE_ITR_DYNAMIC))
-#define ITR_TO_REG(setting)	((setting) & ~ICE_ITR_DYNAMIC)
-#define ICE_ITR_GRAN_S		1	/* ITR granularity is always 2us */
-#define ICE_ITR_GRAN_US		BIT(ICE_ITR_GRAN_S)
-#define ICE_ITR_MASK		0x1FFE	/* ITR register value alignment mask */
-#define ITR_REG_ALIGN(setting)	__ALIGN_MASK(setting, ~ICE_ITR_MASK)
-
-#define ICE_ITR_ADAPTIVE_MIN_INC	0x0002
-#define ICE_ITR_ADAPTIVE_MIN_USECS	0x0002
-#define ICE_ITR_ADAPTIVE_MAX_USECS	0x00FA
-#define ICE_ITR_ADAPTIVE_LATENCY	0x8000
-#define ICE_ITR_ADAPTIVE_BULK		0x0000
-
-#define ICE_DFLT_INTRL	0
-#define ICE_MAX_INTRL	236
-
-#define ICE_WB_ON_ITR_USECS	2
-#define ICE_IN_WB_ON_ITR_MODE	255
 
 #define EXP_FW_API_VER_BRANCH		0x00
 #define EXP_FW_API_VER_MAJOR		0x01
 #define EXP_FW_API_VER_MINOR		0x03
 
+#define BITS_PER_BYTE        8
+#define DIV_ROUND_UP(n,d) (((n) + (d) - 1) / (d))
+#define BITS_TO_LONGS(nr)    DIV_ROUND_UP(nr, BITS_PER_BYTE * sizeof(long))
+#define DECLARE_BITMAP(name,bits) \
+     unsigned long name[BITS_TO_LONGS(bits)]
+
+/* This header file defines the Admin Queue commands, error codes and
+ * descriptor format. It is shared between Firmware and Software.
+ */
+
 #define ICE_MAX_VSI			768
 #define ICE_AQC_TOPO_MAX_LEVEL_NUM	0x9
 #define ICE_AQ_SET_MAC_FRAME_SIZE_MAX	9728
-#define DIV_ROUND_UP(n, d) (((n) + (d) - 1) / (d))
-
-#define BITS_PER_LONG (sizeof(long) * 8)
-// #define BIT(nr)                 (1UL << (nr))
-// #define BIT_ULL(nr)             (1ULL << (nr))
-#define BIT_MASK(nr)            (1UL << ((nr) % BITS_PER_LONG))
-#define BIT_WORD(nr) ((nr) / BITS_PER_LONG)
-#define BITS_TO_LONGS(x) (DIV_ROUND_UP(x, BITS_PER_LONG))
-#define DECLARE_BITMAP(name,bits) \
-	unsigned long name[BITS_TO_LONGS(bits)]
 
 struct ice_aqc_generic {
 	__le32 param0;
@@ -306,13 +275,6 @@ struct ice_aqc_res_elem {
 		__le16 sw_resp;
 		__le16 flu_resp;
 	} e;
-};
-
-/* The response buffer is as follows. Note that the length of the
- * elements array varies with the length of the command response.
- */
-struct ice_aqc_get_sw_cfg_resp {
-	struct ice_aqc_get_sw_cfg_resp_elem elements[1];
 };
 
 /* Buffer for Allocate/Free Resources commands */
@@ -807,11 +769,7 @@ struct ice_aqc_txsched_topo_grp_info_hdr {
 
 struct ice_aqc_add_elem {
 	struct ice_aqc_txsched_topo_grp_info_hdr hdr;
-	struct ice_aqc_txsched_elem_data generic[1];
-};
-
-struct ice_aqc_get_elem {
-	struct ice_aqc_txsched_elem_data generic[1];
+	struct ice_aqc_txsched_elem_data generic[];
 };
 
 struct ice_aqc_get_topo_elem {
@@ -822,7 +780,7 @@ struct ice_aqc_get_topo_elem {
 
 struct ice_aqc_delete_elem {
 	struct ice_aqc_txsched_topo_grp_info_hdr hdr;
-	__le32 teid[1];
+	__le32 teid[];
 };
 
 /* Query Port ETS (indirect 0x040E)
@@ -1445,25 +1403,25 @@ struct ice_aqc_nvm_pass_comp_tbl {
 	__le32 addr_low;
 };
 
-// struct ice_aqc_nvm_comp_tbl {
-// 	__le16 comp_class;
-// #define NVM_COMP_CLASS_ALL_FW	0x000A
+struct ice_aqc_nvm_comp_tbl {
+	__le16 comp_class;
+#define NVM_COMP_CLASS_ALL_FW	0x000A
 
-// 	__le16 comp_id;
-// #define NVM_COMP_ID_OROM	0x5
-// #define NVM_COMP_ID_NVM		0x6
-// #define NVM_COMP_ID_NETLIST	0x8
+	__le16 comp_id;
+#define NVM_COMP_ID_OROM	0x5
+#define NVM_COMP_ID_NVM		0x6
+#define NVM_COMP_ID_NETLIST	0x8
 
-// 	u8 comp_class_idx;
-// #define FWU_COMP_CLASS_IDX_NOT_USE 0x0
+	u8 comp_class_idx;
+#define FWU_COMP_CLASS_IDX_NOT_USE 0x0
 
-// 	__le32 comp_cmp_stamp;
-// 	u8 cvs_type;
-// #define NVM_CVS_TYPE_ASCII	0x1
+	__le32 comp_cmp_stamp;
+	u8 cvs_type;
+#define NVM_CVS_TYPE_ASCII	0x1
 
-// 	u8 cvs_len;
-// 	u8 cvs[]; /* Component Version String */
-// } __packed;
+	u8 cvs_len;
+	u8 cvs[]; /* Component Version String */
+};
 
 /* Send to PF command (indirect 0x0801) ID is only used by PF
  *
@@ -1703,7 +1661,7 @@ struct ice_aqc_add_tx_qgrp {
 	__le32 parent_teid;
 	u8 num_txqs;
 	u8 rsvd[3];
-	struct ice_aqc_add_txqs_perq txqs[1];
+	struct ice_aqc_add_txqs_perq txqs[];
 };
 
 /* Disable Tx LAN Queues (indirect 0x0C31) */
@@ -1746,7 +1704,7 @@ struct ice_aqc_dis_txq_item {
 			(0 << ICE_AQC_Q_DIS_BUF_ELEM_TYPE_S)
 #define ICE_AQC_Q_DIS_BUF_ELEM_TYPE_RDMA_QSET	\
 			(1 << ICE_AQC_Q_DIS_BUF_ELEM_TYPE_S)
-	__le16 q_id[1];
+	__le16 q_id[];
 };
 
 /* Add Tx RDMA Queue Set (indirect 0x0C33) */
@@ -1891,7 +1849,7 @@ struct ice_pkg_ver {
 
 struct ice_aqc_get_pkg_info {
 	struct ice_pkg_ver ver;
-	char name[ICE_PKG_NAME_SIZE];
+	char name[ICE_SEG_NAME_SIZE];
 	__le32 track_id;
 	u8 is_in_nvm;
 	u8 is_active;
@@ -1902,7 +1860,7 @@ struct ice_aqc_get_pkg_info {
 /* Get Package Info List response buffer format (0x0C43) */
 struct ice_aqc_get_pkg_info_resp {
 	__le32 count;
-	struct ice_aqc_get_pkg_info pkg_info[1];
+	struct ice_aqc_get_pkg_info pkg_info[];
 };
 
 /* Driver Shared Parameters (direct, 0x0C90) */
@@ -1977,6 +1935,7 @@ struct i40e_aq_desc {
 		u8 raw[16];
 	} params;
 };
+
 struct ice_aq_desc {
 	__le16 flags;
 	__le16 opcode;
@@ -2194,9 +2153,4 @@ enum ice_adminq_opc {
 	ice_aqc_opc_fw_logging_info			= 0xFF10,
 };
 
-// /* Tx Descriptor */
-// struct ice_tx_desc {
-// 	__le64 buf_addr; /* Address of descriptor's data buf */
-// 	__le64 cmd_type_offset_bsz;
-// };
 #endif /* _ICE_ADMINQ_CMD_H_ */

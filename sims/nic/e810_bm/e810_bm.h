@@ -35,7 +35,7 @@ extern "C" {
 #include <simbricks/nicbm/nicbm.h>
 #include "sims/nic/e810_bm/e810_base_wrapper.h"
 
-// #define DEBUG_DEV
+#define DEBUG_DEV
 // #define DEBUG_ADMINQ
 // #define DEBUG_LAN
 // #define DEBUG_HMC
@@ -213,9 +213,12 @@ class queue_base {
   uint32_t active_cnt;
 
   uint64_t base;
+  
   uint32_t len;
   uint32_t &reg_head;
   uint32_t &reg_tail;
+
+  uint64_t host_cq_pa;
 
   bool enabled;
   size_t desc_len;
@@ -246,6 +249,7 @@ class queue_base {
   void writeback_done(uint32_t first_pos, uint32_t cnt);
 
  public:
+  
   queue_base(const std::string &qname_, uint32_t &reg_head_,
              uint32_t &reg_tail_, i40e_bm &dev_);
   virtual void reset();
@@ -260,7 +264,7 @@ class queue_admin_tx : public queue_base {
     queue_admin_tx &aq;
     i40e_bm &dev;
     struct i40e_aq_desc *d;
-    struct ice_aq_desc *ice_d;
+    // struct ice_aq_desc *ice_d;
     
     
     virtual void data_written(uint64_t addr, size_t len);
@@ -276,7 +280,7 @@ class queue_admin_tx : public queue_base {
 
    public:
     admin_desc_ctx(queue_admin_tx &queue_, i40e_bm &dev);
-
+  
     virtual void prepare();
     virtual void process();
   };
@@ -289,6 +293,95 @@ class queue_admin_tx : public queue_base {
  public:
   queue_admin_tx(i40e_bm &dev_, uint64_t &reg_base_, uint32_t &reg_len_,
                  uint32_t &reg_head_, uint32_t &reg_tail_);
+  void reg_updated();
+};
+
+class control_queue_pair : public queue_base {
+ protected:
+  class admin_desc_ctx : public desc_ctx {
+   protected:
+    control_queue_pair &aq;
+    i40e_bm &dev;
+    __le64 *d;
+    uint64_t cqp_base;
+    // struct ice_aq_desc *ice_d;
+    
+    
+    virtual void data_written(uint64_t addr, size_t len);
+    virtual void data_write(uint64_t addr, size_t data_len,
+                                      const void *buf);
+
+    // prepare completion descriptor (fills flags, and return value)
+    void desc_compl_prepare(uint16_t retval, uint16_t extra_flags);
+    // complete direct response
+    void desc_complete(uint16_t retval, uint16_t extra_flags = 0);
+    // complete indirect response
+     void desc_complete_indir(uint16_t retval, const void *data, size_t len, u64 buf_addr,
+                             uint16_t extra_flags = 0,
+                             bool ignore_datalen = false);
+
+   public:
+    admin_desc_ctx(control_queue_pair &queue_, i40e_bm &dev);
+
+    virtual void prepare();
+    virtual void process();
+  };
+
+  class dma_data_wb : public dma_base {
+   protected:
+    desc_ctx &ctx;
+
+   public:
+    size_t total_len;
+    size_t part_offset;
+    dma_data_wb(desc_ctx &ctx_, size_t len);
+    virtual ~dma_data_wb();
+    virtual void done();
+  };
+
+  class cqe_fetch : public dma_base {
+   protected:
+    void* buf_addr;
+    control_queue_pair &cqp_;
+
+   public:
+    uint32_t pos;
+    cqe_fetch(control_queue_pair &queue_, size_t len, void *buffer);
+    virtual ~cqe_fetch();
+    virtual void done();
+  };
+
+  class cqp_ctx_fetch : public dma_base {
+    friend class control_queue_pair;
+   protected:
+    void* buf_addr;
+    control_queue_pair &cqp_;
+
+   public:
+    size_t total_len;
+    size_t part_offset;
+    
+
+    explicit cqp_ctx_fetch(control_queue_pair &cqp, size_t len, void *buffer);
+    virtual ~cqp_ctx_fetch();
+    virtual void done();
+  };
+  
+  uint32_t &reg_high;
+  uint32_t &reg_low;
+  __le64 cqp_ctx[8];
+  u64 cqe_base;
+  __le64 cqe[8];
+  virtual desc_ctx &desc_ctx_create();
+
+ public:
+  control_queue_pair(i40e_bm &dev_, uint32_t &reg_high_, uint32_t &reg_low_,
+                 uint32_t &reg_head_, uint32_t &reg_tail_);
+  void ctx_fetched();
+  virtual void trigger_fetch();
+  virtual void trigger_process();
+  virtual void trigger_writeback();
+  virtual void trigger();
   void reg_updated();
 };
 
@@ -320,6 +413,10 @@ class host_mem_cache {
   // issue a hmc memory operation (address is in the context
   void issue_mem_op(mem_op &op);
 };
+
+
+
+
 
 class lan_queue_base : public queue_base {
  protected:
@@ -498,17 +595,17 @@ class shadow_ram {
   void write(uint16_t addr, uint16_t val);
 };
 
+
 class i40e_bm : public nicbm::Runner::Device {
  protected:
   friend class queue_admin_tx;
   friend class host_mem_cache;
+  friend class control_queue_pair;
   friend class lan;
   friend class lan_queue_base;
   friend class lan_queue_rx;
   friend class lan_queue_tx;
   friend class shadow_ram;
-
-  
 
   static const unsigned BAR_REGS = 0;
   static const unsigned BAR_IO = 2;
@@ -612,7 +709,7 @@ class i40e_bm : public nicbm::Runner::Device {
     uint32_t QRXFLXP_CNTXT[2048];
     uint32_t qtx_comm_head[NUM_QUEUES];
 
-    uint32_t QRX_CONTEXT[8];
+    uint32_t QRX_CONTEXT[QRX_CONTEXT(7, 2047)];
 
     uint32_t GLINT_ITR0[2048];
     uint32_t GLINT_ITR1[2048];
@@ -669,6 +766,11 @@ class i40e_bm : public nicbm::Runner::Device {
     uint32_t GLV_TEPC[768];
     uint32_t GLV_UPRCL[768];
     uint32_t GLV_UPTCL[768];
+    uint32_t reg_PFPE_CCQPHIGH;
+    uint32_t reg_PFPE_CCQPLOW;
+    uint32_t reg_PFPE_CQPTAIL;
+    uint32_t reg_PFPE_CQPDB;
+    uint32_t reg_PFPE_CCQPSTATUS;
 
     uint32_t QTX_COMM_DBELL[NUM_QUEUES];
   };
@@ -695,6 +797,7 @@ class i40e_bm : public nicbm::Runner::Device {
   queue_admin_tx pf_atq;
   queue_admin_tx pf_mbx_atq;
   host_mem_cache hmc;
+  control_queue_pair cqp;
   shadow_ram shram;
   lan lanmgr;
 
@@ -703,6 +806,11 @@ class i40e_bm : public nicbm::Runner::Device {
 
 
   struct ice_aqc_get_topo_elem topo_elem;
+  bool node1 = false;
+  bool node3 = false;
+  bool node4 = false;
+  bool node5 = false;
+  bool node6 = false;
   int_ev intevs[NUM_PFINTS];
 
   /** Read from the I/O bar */
@@ -717,6 +825,7 @@ class i40e_bm : public nicbm::Runner::Device {
 
   void reset(bool indicate_done);
 };
+
 
 // places the tcp checksum in the packet (assuming ipv4)
 void xsum_tcp(void *tcphdr, size_t l4len);

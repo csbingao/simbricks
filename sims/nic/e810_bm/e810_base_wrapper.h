@@ -28,16 +28,20 @@ typedef uint64_t __le64;
 #define ETH_ALEN	6		/* Octets in one ethernet addr	 */
 #define MBX_PF_VT_PFALLOC	0x00231E80
 
+// #include <include/linux/bitfield.h>
 
 // #include "sims/nic/e810_bm/base/i40e_adminq_cmd.h"
 // #include "sims/nic/e810_bm/base/i40e_devids.h"
 // #include "sims/nic/e810_bm/base/i40e_register.h"
 // #include "sims/nic/e810_bm/base/i40e_rxtxq.h"
 #include "sims/nic/e810_bm/base/ice_devids.h"
-// #include "sims/nic/e810_bm/base/ice_type.h"
+#include "sims/nic/e810_bm/base/ice_type.h"
 #include "sims/nic/e810_bm/base/ice_hw_autogen.h"
 #include "sims/nic/e810_bm/base/ice_adminq_cmd.h"
 #include "sims/nic/e810_bm/base/ice_lan_tx_rx.h"
+#include "sims/nic/e810_bm/base/icrdma_hw.h"
+#include "sims/nic/e810_bm/base/defs.h"
+#include "sims/nic/e810_bm/base/hmc.h"
 
 /* from i40e_types.h */
 
