@@ -3,6 +3,7 @@
 #ifndef IRDMA_DEFS_H
 #define IRDMA_DEFS_H
 
+#define BITS_PER_LONG 32
 #define BITS_PER_LONG_LONG 64
 
 #if __BYTE_ORDER == __BIG_ENDIAN
@@ -32,6 +33,10 @@
 #define be32_to_cpu bswap_32
 #define be64_to_cpu bswap_64
 #endif
+
+#define GENMASK(h, l) \
+	(((~UL(0)) - (UL(1) << (l)) + 1) & \
+	 (~UL(0) >> (BITS_PER_LONG - 1 - (h))))
 
 #define GENMASK_ULL(h, l) \
 	(((~ULL(0)) - (ULL(1) << (l)) + 1) & \
@@ -1198,4 +1203,7 @@ static inline void get_32bit_val(__le32 *wqe_words, u32 byte_index, u32 *val)
 {
 	*val = le32_to_cpu(wqe_words[byte_index >> 2]);
 }
+
+
+
 #endif /* IRDMA_DEFS_H */

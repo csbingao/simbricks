@@ -43,6 +43,7 @@ typedef uint64_t __le64;
 #include "sims/nic/e810_bm/base/defs.h"
 #include "sims/nic/e810_bm/base/hmc.h"
 
+
 /* from i40e_types.h */
 
 /* Checksum and Shadow RAM pointers */

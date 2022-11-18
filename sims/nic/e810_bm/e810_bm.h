@@ -218,7 +218,7 @@ class queue_base {
   uint32_t &reg_head;
   uint32_t &reg_tail;
 
-  uint64_t host_cq_pa;
+  
 
   bool enabled;
   size_t desc_len;
@@ -249,7 +249,7 @@ class queue_base {
   void writeback_done(uint32_t first_pos, uint32_t cnt);
 
  public:
-  
+  uint64_t host_cq_pa;
   queue_base(const std::string &qname_, uint32_t &reg_head_,
              uint32_t &reg_tail_, i40e_bm &dev_);
   virtual void reset();
@@ -304,7 +304,9 @@ class control_queue_pair : public queue_base {
     i40e_bm &dev;
     __le64 *d;
     uint64_t cqp_base;
+    uint32_t cnt;
     // struct ice_aq_desc *ice_d;
+    
     
     
     virtual void data_written(uint64_t addr, size_t len);
@@ -383,6 +385,55 @@ class control_queue_pair : public queue_base {
   virtual void trigger_writeback();
   virtual void trigger();
   void reg_updated();
+};
+
+
+class completion_event_queue : public queue_base {
+ protected:
+  
+  class dma_data_wb : public dma_base {
+   protected:
+    completion_event_queue &ceq;
+
+   public:
+
+    dma_data_wb(completion_event_queue &ceq_);
+    virtual ~dma_data_wb();
+    virtual void done();
+  };
+  
+  __le64 cqp_ctx[8];
+  
+  __le64 cqe[8];
+
+  
+  uint64_t ceq_size;
+
+
+ public:
+  u64 ceq_base;
+  uint32_t pos;
+  uint32_t cnt;
+  size_t total_len;
+  size_t part_offset;
+  virtual desc_ctx &desc_ctx_create() override;
+  completion_event_queue(i40e_bm &dev_, uint64_t ceq_base, uint32_t &reg_head_,
+                               uint32_t &reg_tail_);
+  virtual void trigger_fetch();
+  virtual void trigger_process();
+  virtual void trigger_writeback();
+  virtual void trigger();
+
+  virtual void tail_updated();
+
+  virtual void interrupt();
+
+  // virtual void do_writeback(uint32_t first_idx, uint32_t first_pos,
+                            // uint32_t cnt);
+
+  virtual void writeback_done(uint32_t first_pos, uint32_t cnt);
+
+  void qena_updated(uint16_t idx);
 };
 
 // host memory cache
@@ -601,6 +652,7 @@ class i40e_bm : public nicbm::Runner::Device {
   friend class queue_admin_tx;
   friend class host_mem_cache;
   friend class control_queue_pair;
+  friend class completion_event_queue;
   friend class lan;
   friend class lan_queue_base;
   friend class lan_queue_rx;
@@ -647,6 +699,7 @@ class i40e_bm : public nicbm::Runner::Device {
     uint32_t qtx_tail[NUM_QUEUES];
     uint32_t qtx_ctl[NUM_QUEUES];
     uint32_t qint_rqctl[NUM_QUEUES];
+    uint32_t glint_ceqctl[2048];
     uint32_t qrx_ena[2048];
     uint32_t qrx_tail[2048];
 
@@ -798,6 +851,7 @@ class i40e_bm : public nicbm::Runner::Device {
   queue_admin_tx pf_mbx_atq;
   host_mem_cache hmc;
   control_queue_pair cqp;
+  completion_event_queue ceq;
   shadow_ram shram;
   lan lanmgr;
 

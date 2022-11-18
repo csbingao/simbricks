@@ -56,7 +56,6 @@ queue_base::queue_base(const std::string &qname_, uint32_t &reg_head_,
 void queue_base::ctxs_init() {
   for (size_t i = 0; i < MAX_ACTIVE_DESCS; i++) {
     desc_ctxs[i] = &desc_ctx_create();
-    // std::cout<<"Did I create the ctx1?"<<std::endl;
   }
 }
 

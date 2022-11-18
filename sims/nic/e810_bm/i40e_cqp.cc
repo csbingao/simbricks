@@ -13,7 +13,7 @@ namespace i40e {
 control_queue_pair::control_queue_pair(i40e_bm &dev_, uint32_t &reg_high_,
                                uint32_t &reg_low_, uint32_t &reg_head_,
                                uint32_t &reg_tail_)
-    : queue_base("atx", reg_head_, reg_tail_, dev_),
+    : queue_base("cqp", reg_head_, reg_tail_, dev_),
       reg_high(reg_high_),
       reg_low(reg_low_) {
   desc_len = 64;
@@ -189,6 +189,7 @@ void control_queue_pair::admin_desc_ctx::process() {
   get_64bit_val((__le64*)desc, 24, &temp);
   __le16 opcode = FIELD_GET(IRDMA_CQPSQ_OPCODE, temp);
   std::cout << "opcode is: " << opcode << logger::endl;
+  
   if (opcode == IRDMA_CQP_OP_QUERY_FPM_VAL){
     u64 query_buf_addr;
     __le64 return_buffer[22];
@@ -276,8 +277,11 @@ void control_queue_pair::admin_desc_ctx::process() {
     set_64bit_val(return_buffer, 24, temp);
     u32 new_tail = FIELD_GET(IRDMA_CQ_WQEIDX, temp);
     std::cout << "new tail here: "<<new_tail<<logger::endl;
-
+    std::cout << " create cq return buffer addr: "<<shadow_buf_addr << logger::endl;
     desc_complete_indir(0, return_buffer, 32, shadow_buf_addr);
+    // dev.ceq.tail_updated();
+    cnt = 1;
+    
   } else if (opcode == IRDMA_CQP_OP_QUERY_RDMA_FEATURES) {
     u64 shadow_buf_addr;
     get_64bit_val((__le64*)desc, 32, &shadow_buf_addr);
@@ -290,7 +294,7 @@ void control_queue_pair::admin_desc_ctx::process() {
     desc_complete_indir(0, return_buffer, 32, shadow_buf_addr);
 
 
-    u64 return_shadow_buf_addr = cqp_base + 32;
+    u64 return_shadow_buf_addr = cqp_base + cnt*32;
     __le64 cqe_return_buffer[4];
     
     // 8 bytes
@@ -307,22 +311,23 @@ void control_queue_pair::admin_desc_ctx::process() {
             FIELD_PREP(IRDMA_CQ_VALID, polarity);
     
     set_64bit_val(cqe_return_buffer, 24, temp);
-
+    std::cout << " query rdma return buffer addr: "<<return_shadow_buf_addr << logger::endl;
     desc_complete_indir(0, cqe_return_buffer, 32, return_shadow_buf_addr);
-
+    cnt++;
     
 
   } else if (opcode == IRDMA_CQP_OP_CREATE_CEQ) {
-    u64 shadow_buf_addr;
-    get_64bit_val((__le64*)desc, 32, &shadow_buf_addr);
+    u64 ceq_base;
+    get_64bit_val((__le64*)desc, 32, &ceq_base);
     __le64 return_buffer[4];
     memset(return_buffer, 0, sizeof(__le64)*4);
     temp = 0;
     set_64bit_val(return_buffer, 0, temp);
-    desc_complete_indir(0, return_buffer, 32, shadow_buf_addr);
+    dev.ceq.ceq_base = ceq_base;
+    desc_complete_indir(0, return_buffer, 32, ceq_base);
 
 
-    u64 return_shadow_buf_addr = cqp_base + 32*3;
+    u64 return_shadow_buf_addr = cqp_base + 32*cnt;
     __le64 cqe_return_buffer[4];
     
     // 8 bytes
@@ -333,14 +338,18 @@ void control_queue_pair::admin_desc_ctx::process() {
     u64 get_polarity;
     get_64bit_val((__le64*)desc, 24, &get_polarity);
     u8 polarity = (u8)FIELD_GET(IRDMA_CQPSQ_WQEVALID, get_polarity);
+    u32 ceq_id = FIELD_GET(IRDMA_CQPSQ_CEQ_CEQID, get_polarity);
     polarity = (u8)1;
     u32 tail = dev.regs.reg_PFPE_CQPTAIL-1;
     temp = FIELD_PREP(IRDMA_CQ_WQEIDX, tail) | 
             FIELD_PREP(IRDMA_CQ_VALID, polarity);
     
     set_64bit_val(cqe_return_buffer, 24, temp);
-
+    std::cout << " create ceq return buffer addr: "<<return_shadow_buf_addr << logger::endl;
     desc_complete_indir(0, cqe_return_buffer, 32, return_shadow_buf_addr);
+    
+    dev.ceq.qena_updated(ceq_id);
+    cnt++;
   }
   else {
     std::cout << "unhandled opcode is: " << opcode << logger::endl;

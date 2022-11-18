@@ -68,4 +68,13 @@ enum icrdma_device_caps_const {
 };
 
 void icrdma_init_hw(struct irdma_sc_dev *dev);
+
+#define IRDMA_GLINT_DYN_CTL_INTENA BIT(0)
+#define IRDMA_GLINT_DYN_CTL_CLEARPBA BIT(1)
+#define IRDMA_GLINT_DYN_CTL_ITR_INDX GENMASK(4, 3)
+#define IRDMA_GLINT_DYN_CTL_INTERVAL GENMASK(16, 5)
+#define IRDMA_GLINT_CEQCTL_ITR_INDX GENMASK(12, 11)
+#define IRDMA_GLINT_CEQCTL_CAUSE_ENA BIT(30)
+#define IRDMA_GLINT_CEQCTL_MSIX_INDX GENMASK(10, 0)
+
 #endif /* ICRDMA_HW_H*/

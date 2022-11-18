@@ -41,6 +41,7 @@ i40e_bm::i40e_bm()
       pf_mbx_atq(*this, regs.pf_mbx_atqba, regs.pf_mbx_atqlen, regs.pf_mbx_atqh, regs.pf_mbx_atqt),
       hmc(*this),
       cqp(*this, regs.reg_PFPE_CCQPHIGH, regs.reg_PFPE_CCQPLOW, regs.pf_atqh, regs.pf_atqt),
+      ceq(*this, 0, regs.pf_atqh, regs.pf_atqt),
       shram(*this),
       lanmgr(*this, NUM_QUEUES) {
   reset(false);
@@ -175,6 +176,8 @@ uint32_t i40e_bm::reg_mem_read32(uint64_t addr) {
   } else if (addr >= QINT_RQCTL(0) &&
              addr <= QINT_RQCTL(2047)) {
     val = regs.qint_rqctl[(addr - QINT_RQCTL(0)) / 4];
+  } else if (addr >= GLINT_CEQCTL(0) && addr <= GLINT_CEQCTL(2048)) {
+    val = regs.glint_ceqctl[(addr - GLINT_CEQCTL(0))];
   } else if (addr >= QRX_CTRL(0) && addr <= QRX_CTRL(2047)) {
     val = regs.QRX_CTRL[(addr - QRX_CTRL(0)) / 4];
   } else if (addr >= QRX_TAIL(0) &&
@@ -601,7 +604,10 @@ void i40e_bm::reg_mem_write32(uint64_t addr, uint32_t val) {
              addr <= QINT_RQCTL(2048 - 1)) {
     size_t idx = (addr - QINT_RQCTL(0)) / 4;          
     regs.qint_rqctl[idx] = val;
-  
+  } else if (addr >= GLINT_CEQCTL(0) && addr <= GLINT_CEQCTL(2018-1)) {
+    size_t idx = (addr - GLINT_CEQCTL(0)) / 4;
+    regs.glint_ceqctl[idx] = val;
+    ceq.qena_updated(idx);
   } else if (addr >= GLINT_ITR(0, 0) && addr <= GLINT_ITR(0, 2047)) {
     regs.GLINT_ITR0[(addr - GLINT_ITR(0,0))] = val;
   } else if (addr >= GLINT_ITR(1, 0) && addr <= GLINT_ITR(1, 2047)) {
