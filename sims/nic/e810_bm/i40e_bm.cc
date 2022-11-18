@@ -43,7 +43,8 @@ i40e_bm::i40e_bm()
       cqp(*this, regs.reg_PFPE_CCQPHIGH, regs.reg_PFPE_CCQPLOW, regs.pf_atqh, regs.pf_atqt),
       ceq(*this, 0, regs.pf_atqh, regs.pf_atqt),
       shram(*this),
-      lanmgr(*this, NUM_QUEUES) {
+      lanmgr(*this, NUM_QUEUES),
+      cem(*this, NUM_QUEUES) {
   reset(false);
 }
 

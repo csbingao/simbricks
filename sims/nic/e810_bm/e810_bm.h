@@ -49,6 +49,7 @@ namespace i40e {
 
 class i40e_bm;
 class lan;
+class cem;
 
 class dma_base : public nicbm::DMAOp {
  public:
@@ -424,6 +425,9 @@ class completion_event_queue : public queue_base {
   virtual void trigger_writeback();
   virtual void trigger();
 
+  void ctx_fetched();
+  virtual void initialize();
+
   virtual void tail_updated();
 
   virtual void interrupt();
@@ -432,7 +436,8 @@ class completion_event_queue : public queue_base {
                             // uint32_t cnt);
 
   virtual void writeback_done(uint32_t first_pos, uint32_t cnt);
-
+  void enable();
+  void disable();
   void qena_updated(uint16_t idx);
 };
 
@@ -634,6 +639,23 @@ class lan {
   void packet_received(const void *data, size_t len);
 };
 
+
+class completion_event_manager {
+ protected:
+  friend class completion_event_queue;
+
+  i40e_bm &dev;
+  logger log;
+  const size_t num_qs;
+  completion_event_queue **ceqs;
+
+ public:
+  completion_event_manager(i40e_bm &dev, size_t num_qs);
+  void reset();
+  void qena_updated(uint16_t idx);
+  void tail_updated(uint16_t idx);
+};
+
 class shadow_ram {
  protected:
   i40e_bm &dev;
@@ -654,6 +676,7 @@ class i40e_bm : public nicbm::Runner::Device {
   friend class control_queue_pair;
   friend class completion_event_queue;
   friend class lan;
+  friend class completion_event_manager;
   friend class lan_queue_base;
   friend class lan_queue_rx;
   friend class lan_queue_tx;
@@ -854,6 +877,7 @@ class i40e_bm : public nicbm::Runner::Device {
   completion_event_queue ceq;
   shadow_ram shram;
   lan lanmgr;
+  completion_event_manager cem;
 
   u8 ctx_addr[4][22];
 
