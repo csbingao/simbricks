@@ -386,6 +386,7 @@ class control_queue_pair : public queue_base {
   virtual void trigger_writeback();
   virtual void trigger();
   void reg_updated();
+  void create_cqp();
 };
 
 
@@ -413,6 +414,7 @@ class completion_event_queue : public queue_base {
 
  public:
   u64 ceq_base;
+  u32 ceq_id;
   uint32_t pos;
   uint32_t cnt;
   size_t total_len;
@@ -428,7 +430,7 @@ class completion_event_queue : public queue_base {
   void ctx_fetched();
   virtual void initialize();
 
-  virtual void tail_updated();
+  virtual void tail_updated(u32 msix_idx, u32 itr_idx);
 
   virtual void interrupt();
 
@@ -647,9 +649,11 @@ class completion_event_manager {
   i40e_bm &dev;
   logger log;
   const size_t num_qs;
-  completion_event_queue **ceqs;
+  
 
  public:
+  completion_event_queue **ceqs;
+
   completion_event_manager(i40e_bm &dev, size_t num_qs);
   void reset();
   void qena_updated(uint16_t idx);
@@ -874,7 +878,6 @@ class i40e_bm : public nicbm::Runner::Device {
   queue_admin_tx pf_mbx_atq;
   host_mem_cache hmc;
   control_queue_pair cqp;
-  completion_event_queue ceq;
   shadow_ram shram;
   lan lanmgr;
   completion_event_manager cem;

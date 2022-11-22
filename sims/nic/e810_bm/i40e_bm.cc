@@ -41,7 +41,6 @@ i40e_bm::i40e_bm()
       pf_mbx_atq(*this, regs.pf_mbx_atqba, regs.pf_mbx_atqlen, regs.pf_mbx_atqh, regs.pf_mbx_atqt),
       hmc(*this),
       cqp(*this, regs.reg_PFPE_CCQPHIGH, regs.reg_PFPE_CCQPLOW, regs.pf_atqh, regs.pf_atqt),
-      ceq(*this, 0, regs.pf_atqh, regs.pf_atqt),
       shram(*this),
       lanmgr(*this, NUM_QUEUES),
       cem(*this, NUM_QUEUES) {
@@ -606,9 +605,9 @@ void i40e_bm::reg_mem_write32(uint64_t addr, uint32_t val) {
     size_t idx = (addr - QINT_RQCTL(0)) / 4;          
     regs.qint_rqctl[idx] = val;
   } else if (addr >= GLINT_CEQCTL(0) && addr <= GLINT_CEQCTL(2018-1)) {
-    size_t idx = (addr - GLINT_CEQCTL(0)) / 4;
+    uint16_t idx = (addr - GLINT_CEQCTL(0)) / 4;
     regs.glint_ceqctl[idx] = val;
-    ceq.qena_updated(idx);
+    cem.qena_updated(idx);
   } else if (addr >= GLINT_ITR(0, 0) && addr <= GLINT_ITR(0, 2047)) {
     regs.GLINT_ITR0[(addr - GLINT_ITR(0,0))] = val;
   } else if (addr >= GLINT_ITR(1, 0) && addr <= GLINT_ITR(1, 2047)) {
@@ -784,8 +783,13 @@ void i40e_bm::reg_mem_write32(uint64_t addr, uint32_t val) {
 
       case PFPE_CQPDB:
         regs.reg_PFPE_CQPDB = val;
-        regs.reg_PFPE_CQPTAIL = 0x3ff & val;
-        cqp.reg_updated();
+        if (val == 0){
+          break;
+        }
+        if ((0x3ff & val) > regs.reg_PFPE_CQPTAIL){
+          cqp.reg_updated();
+        }
+        
         break;
 
       case PFPE_CCQPHIGH:
@@ -794,13 +798,8 @@ void i40e_bm::reg_mem_write32(uint64_t addr, uint32_t val) {
       
       case PFPE_CCQPLOW:
         regs.reg_PFPE_CCQPLOW = val;
-        if (val == 0){
-          regs.reg_PFPE_CCQPSTATUS = 1<<31;
-        }
-        else{
-          regs.reg_PFPE_CCQPSTATUS = 1;
-        }
         
+        cqp.create_cqp();
         break;
 
       case PFPE_CQPTAIL:

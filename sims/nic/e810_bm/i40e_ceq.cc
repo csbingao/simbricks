@@ -21,7 +21,7 @@ completion_event_manager::completion_event_manager(i40e_bm &dev_, size_t num_qs_
 }
 
 void completion_event_queue::enable(){
-  if (enabled)
+  if (!enabled)
     return;
   ctx_fetched();
 }
@@ -33,7 +33,6 @@ void completion_event_queue::disable() {
 void completion_event_queue::ctx_fetched(){
   initialize();
   enabled = true;
-  reg_updated();
 }
 
 void completion_event_queue::initialize(){
@@ -57,14 +56,14 @@ void completion_event_manager::qena_updated(uint16_t idx) {
   if (!ceq.is_enabled()) {
     // enable and initialize queue here
     ceq.enable();
-    ceq.tail_updated();
+    ceq.tail_updated(msix_idx, itr_index);
   } else {
     if (msix_idx == 0) {
     dev.regs.pfint_icr0 |=
         1 |
         (1 << (2 + 0));
     }
-    ceq.tail_updated();
+    ceq.tail_updated(msix_idx, itr_index);
   }
 }
 
@@ -82,8 +81,9 @@ completion_event_queue::completion_event_queue(i40e_bm &dev_, uint64_t ceq_base,
   
 }
 
-void completion_event_queue::tail_updated() {
-  trigger();
+void completion_event_queue::tail_updated(u32 msix_idx, u32 itr_idx) {
+  // trigger();
+  dev.SignalInterrupt(msix_idx, itr_idx);
 }
 
 
@@ -109,13 +109,7 @@ void completion_event_queue::trigger_process() {
 void completion_event_queue::trigger_writeback() {
   if (!enabled)
     return;
-  u32 int_dyn_reg = dev.regs.pfint_dyn_ctln[idx];
-  u32 int_ctl_reg = dev.regs.glint_ceqctl[idx];
-  u32 msix_idx = FIELD_GET(IRDMA_GLINT_CEQCTL_MSIX_INDX, int_ctl_reg);
-  msix_idx = 0x7ff & msix_idx;
-	u32 itr_index = FIELD_GET(IRDMA_GLINT_CEQCTL_ITR_INDX, int_ctl_reg);
-  itr_index = 0x3 & itr_index;
-  dev.SignalInterrupt(msix_idx, itr_index);
+  
 }
 
 completion_event_queue::dma_data_wb::dma_data_wb(completion_event_queue &ceq_): ceq(ceq_) {

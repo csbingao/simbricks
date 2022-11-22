@@ -24,7 +24,7 @@ queue_base::desc_ctx &control_queue_pair::desc_ctx_create() {
   return *new admin_desc_ctx(*this, dev);
 }
 
-void control_queue_pair::reg_updated() {
+void control_queue_pair::create_cqp() {
   if (reg_high == 0 && reg_low == 0){
     return;
   }
@@ -32,16 +32,28 @@ void control_queue_pair::reg_updated() {
   uint64_t low = (uint64_t) reg_low;
   base = (high << 32) | low;
   len = 64;
-  std::cout << "cqp base addr: " << std::hex << base << logger::endl;
+  std::cout << "cqp ctx base addr: " << std::hex << base << logger::endl;
   if (!enabled) {
     cqp_ctx_fetch *dma = new cqp_ctx_fetch(*this, 64, cqp_ctx);
     dma->dma_addr_ = base;
     dma->len_ = 64;
     dev.runner_->IssueDma(*dma);
     enabled = true;
-  } else {
+    dev.regs.reg_PFPE_CQPTAIL = 0;
+    if (dev.regs.reg_PFPE_CCQPLOW == 0){
+          dev.regs.reg_PFPE_CCQPSTATUS = 1<<31;
+        }
+        else{
+          dev.regs.reg_PFPE_CCQPSTATUS = 1;
+    }
+  }
+}
+
+void control_queue_pair::reg_updated() {
+  if (enabled){
     trigger();
   }
+  
 }
 
 control_queue_pair::cqe_fetch::cqe_fetch(control_queue_pair &cqp, size_t len, void *buffer) : buf_addr(buffer), cqp_(cqp) {
@@ -74,6 +86,7 @@ void control_queue_pair::cqe_fetch::done() {
     std::cout << std::hex << (uint64_t)((uint64_t*)buf_addr)[i];
   }
   ctx.process();
+  
   delete this;
 }
 
@@ -105,13 +118,13 @@ void control_queue_pair::ctx_fetched(){
   cqe_base = sq_pa;
   len = 64;
   get_64bit_val(cqp_ctx, 24, &host_cq_pa);
-  trigger();
+  // trigger();
 }
 
 void control_queue_pair::trigger() {
   trigger_fetch();
-  trigger_process();
-  trigger_writeback();
+  // trigger_process();
+  // trigger_writeback();
 }
 
 void control_queue_pair::trigger_fetch() {
@@ -120,7 +133,7 @@ void control_queue_pair::trigger_fetch() {
   uint32_t tail = dev.regs.reg_PFPE_CQPTAIL;
   cqe_fetch *dma = new cqe_fetch(*this, 64, cqe);
   dma->write_ = false;
-  dma->dma_addr_ = cqe_base + (tail-1)*64;
+  dma->dma_addr_ = cqe_base + (tail)*64;
   std::cout << "cqe addr: "<< dma->dma_addr_<<logger::endl;
   dma->len_ = 64;
   dma->pos = 0;
@@ -189,7 +202,7 @@ void control_queue_pair::admin_desc_ctx::process() {
   get_64bit_val((__le64*)desc, 24, &temp);
   __le16 opcode = FIELD_GET(IRDMA_CQPSQ_OPCODE, temp);
   std::cout << "opcode is: " << opcode << logger::endl;
-  
+  std::cout << "before process tail is" << dev.regs.reg_PFPE_CQPTAIL << logger::endl;
   if (opcode == IRDMA_CQP_OP_QUERY_FPM_VAL){
     u64 query_buf_addr;
     __le64 return_buffer[22];
@@ -229,6 +242,9 @@ void control_queue_pair::admin_desc_ctx::process() {
     u64 q1_block_size = 64;
     temp = FIELD_PREP(IRDMA_QUERY_FPM_Q1BLOCKSIZE, q1_block_size);
     set_64bit_val(return_buffer, 80, temp);
+
+    u32 pble_max_cnt = 0x10000000;
+    set_64bit_val(return_buffer, 112, pble_max_cnt);
 
     // 120 bytes
     u64 max_ceqs = 768;
@@ -270,7 +286,7 @@ void control_queue_pair::admin_desc_ctx::process() {
     u64 get_polarity;
     get_64bit_val((__le64*)desc, 24, &get_polarity);
     u8 polarity = (u8)FIELD_GET(IRDMA_CQPSQ_WQEVALID, get_polarity);
-    u32 tail = dev.regs.reg_PFPE_CQPTAIL-1;
+    u32 tail = dev.regs.reg_PFPE_CQPTAIL;
     std::cout << "tail here: "<<tail<<logger::endl;
     temp = FIELD_PREP(IRDMA_CQ_WQEIDX, tail) | 
                   FIELD_PREP(IRDMA_CQ_VALID, polarity);
@@ -306,7 +322,7 @@ void control_queue_pair::admin_desc_ctx::process() {
     get_64bit_val((__le64*)desc, 24, &get_polarity);
     u8 polarity = (u8)FIELD_GET(IRDMA_CQPSQ_WQEVALID, get_polarity);
     polarity = (u8)1;
-    u32 tail = dev.regs.reg_PFPE_CQPTAIL-1;
+    u32 tail = dev.regs.reg_PFPE_CQPTAIL;
     temp = FIELD_PREP(IRDMA_CQ_WQEIDX, tail) | 
             FIELD_PREP(IRDMA_CQ_VALID, polarity);
     
@@ -323,7 +339,6 @@ void control_queue_pair::admin_desc_ctx::process() {
     memset(return_buffer, 0, sizeof(__le64)*4);
     temp = 0;
     set_64bit_val(return_buffer, 0, temp);
-    dev.ceq.ceq_base = ceq_base;
     desc_complete_indir(0, return_buffer, 32, ceq_base);
 
 
@@ -340,20 +355,24 @@ void control_queue_pair::admin_desc_ctx::process() {
     u8 polarity = (u8)FIELD_GET(IRDMA_CQPSQ_WQEVALID, get_polarity);
     u32 ceq_id = FIELD_GET(IRDMA_CQPSQ_CEQ_CEQID, get_polarity);
     polarity = (u8)1;
-    u32 tail = dev.regs.reg_PFPE_CQPTAIL-1;
+    u32 tail = dev.regs.reg_PFPE_CQPTAIL;
     temp = FIELD_PREP(IRDMA_CQ_WQEIDX, tail) | 
             FIELD_PREP(IRDMA_CQ_VALID, polarity);
     
     set_64bit_val(cqe_return_buffer, 24, temp);
     std::cout << " create ceq return buffer addr: "<<return_shadow_buf_addr << logger::endl;
     desc_complete_indir(0, cqe_return_buffer, 32, return_shadow_buf_addr);
-    
-    dev.ceq.qena_updated(ceq_id);
+    dev.cem.qena_updated(ceq_id);
+    completion_event_queue &ceq = static_cast<completion_event_queue &>(*dev.cem.ceqs[ceq_id]);
+    ceq.ceq_base = ceq_base;
+    ceq.ceq_id = ceq_id;
     cnt++;
   }
   else {
     std::cout << "unhandled opcode is: " << opcode << logger::endl;
   }
+  dev.regs.reg_PFPE_CQPTAIL = dev.regs.reg_PFPE_CQPTAIL + 1;
+  std::cout << "after process tail is" << dev.regs.reg_PFPE_CQPTAIL << logger::endl;
 }
 
 control_queue_pair::dma_data_wb::dma_data_wb(desc_ctx &ctx_, size_t len) : ctx(ctx_){
