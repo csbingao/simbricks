@@ -367,8 +367,31 @@ void control_queue_pair::admin_desc_ctx::process() {
     ceq.ceq_base = ceq_base;
     ceq.ceq_id = ceq_id;
     cnt++;
-  }
-  else {
+  } else if (opcode == IRDMA_CQP_OP_CREATE_AEQ) {
+    u64 aeq_base;
+    get_64bit_val((__le64*)desc, 32, &aeq_base);
+    __le64 return_buffer[4];
+    memset(return_buffer, 0, sizeof(__le64)*4);
+    
+    desc_complete_indir(0, return_buffer, 32, aeq_base);
+
+    u64 return_shadow_buf_addr = cqp_base + 32*cnt;
+    __le64 cqe_return_buffer[4];
+    // 8 bytes
+    set_64bit_val(cqe_return_buffer, 8, dev.cqp.host_cq_pa);
+    temp = 0;
+    u8 polarity;
+    polarity = (u8)1;
+    u32 tail = dev.regs.reg_PFPE_CQPTAIL;
+    temp = FIELD_PREP(IRDMA_CQ_WQEIDX, tail) | 
+            FIELD_PREP(IRDMA_CQ_VALID, polarity);
+    
+    set_64bit_val(cqe_return_buffer, 24, temp);
+    std::cout << " create ceq return buffer addr: "<<return_shadow_buf_addr << logger::endl;
+    desc_complete_indir(0, cqe_return_buffer, 32, return_shadow_buf_addr);
+
+    cnt++;
+  } else {
     std::cout << "unhandled opcode is: " << opcode << logger::endl;
   }
   dev.regs.reg_PFPE_CQPTAIL = dev.regs.reg_PFPE_CQPTAIL + 1;
