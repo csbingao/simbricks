@@ -297,6 +297,96 @@ class queue_admin_tx : public queue_base {
   void reg_updated();
 };
 
+class completion_queue : public queue_base {
+ protected:
+  class admin_desc_ctx : public desc_ctx {
+   protected:
+    completion_queue &aq;
+    i40e_bm &dev;
+    __le64 *d;
+    uint64_t cq_base; // cq write_back buffer addr
+    uint32_t wcursor; // cursor indicating which cqe is going to be written back
+    
+    virtual void data_written(uint64_t addr, size_t len);
+    virtual void data_write(uint64_t addr, size_t data_len,
+                                      const void *buf);
+
+    // prepare completion descriptor (fills flags, and return value)
+    void desc_compl_prepare(uint16_t retval, uint16_t extra_flags);
+    // complete direct response
+    void desc_complete(uint16_t retval, uint16_t extra_flags = 0);
+    // complete indirect response
+     void desc_complete_indir(uint16_t retval, const void *data, size_t len, u64 buf_addr,
+                             uint16_t extra_flags = 0,
+                             bool ignore_datalen = false);
+
+   public:
+    admin_desc_ctx(completion_queue &queue_, i40e_bm &dev);
+
+    virtual void prepare();
+    virtual void process();
+  };
+
+  class dma_data_wb : public dma_base {
+   protected:
+    desc_ctx &ctx;
+
+   public:
+    size_t total_len;
+    size_t part_offset;
+    dma_data_wb(desc_ctx &ctx_, size_t len);
+    virtual ~dma_data_wb();
+    virtual void done();
+  };
+
+  class cqe_fetch : public dma_base {
+   protected:
+    void* buf_addr;
+    completion_queue &cq_;
+
+   public:
+    uint32_t pos;
+    cqe_fetch(completion_queue &queue_, size_t len, void *buffer);
+    virtual ~cqe_fetch();
+    virtual void done();
+  };
+
+  class cq_ctx_fetch : public dma_base {
+    friend class completion_queue;
+   protected:
+    void* buf_addr;
+    completion_queue &cq_;
+
+   public:
+    size_t total_len;
+    size_t part_offset;
+    
+
+    explicit cq_ctx_fetch(completion_queue &cq, size_t len, void *buffer);
+    virtual ~cq_ctx_fetch();
+    virtual void done();
+  };
+  
+  uint32_t &reg_high;
+  uint32_t &reg_low;
+  __le64 cqp_ctx[8];
+  u64 cqe_base;
+  __le64 cqe[8];
+  virtual desc_ctx &desc_ctx_create();
+
+ public:
+  completion_queue(i40e_bm &dev_, uint32_t &reg_high_, uint32_t &reg_low_,
+                 uint32_t &reg_head_, uint32_t &reg_tail_);
+  void ctx_fetched();
+  virtual void trigger_fetch();
+  virtual void trigger_process();
+  virtual void trigger_writeback();
+  virtual void trigger();
+  void reg_updated();
+  void create_cqp();
+};
+
+
 class control_queue_pair : public queue_base {
  protected:
   class admin_desc_ctx : public desc_ctx {
