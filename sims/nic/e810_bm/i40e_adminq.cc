@@ -478,11 +478,22 @@ void queue_admin_tx::admin_desc_ctx::process() {
     
     for (int i = 1; i < 7; i++)
     {
-      query_res.layer_props[i].max_sibl_grp_sz = 1;
+      query_res.layer_props[i].max_sibl_grp_sz = 10;
     }
     
     desc_complete_indir(0, &query_res, sizeof(query_res));
   } else if (d->opcode == ice_aqc_opc_add_txqs) {
+    /*
+    proposed schedule tree. Three levels. Four nodes. Node 2 is software entry point. 
+    level -1          0xff
+                       | 
+    level 0            0
+                    /      \
+    level 1       1          3
+                  |
+    level 2       2 
+      ...   
+    */
     struct ice_aqc_add_txqs *add_txqs_cmd = reinterpret_cast<ice_aqc_add_txqs *> (d->params.raw);
     // add_txqs_cmd->num_qgrps = 1;
     struct ice_aqc_add_tx_qgrp *add_txqs = reinterpret_cast<ice_aqc_add_tx_qgrp *> (data);
