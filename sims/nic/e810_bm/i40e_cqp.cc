@@ -459,6 +459,25 @@ void control_queue_pair::admin_desc_ctx::process() {
     desc_complete_indir(0, cqe_return_buffer, 32, return_shadow_buf_addr);
     dev.cem.qena_updated(ceq_id);
     cnt++;
+  } else if (opcode == IRDMA_CQP_OP_MODIFY_QP){
+    u64 return_shadow_buf_addr = cqp_base + 32*cnt;
+    __le64 cqe_return_buffer[4];
+    set_64bit_val(cqe_return_buffer, 8, dev.cqp.host_cq_pa);
+    temp = 0;
+    u8 polarity;
+    polarity = (u8)1;
+    u32 tail = dev.regs.reg_PFPE_CQPTAIL;
+    temp = FIELD_PREP(IRDMA_CQ_WQEIDX, tail) | 
+            FIELD_PREP(IRDMA_CQ_VALID, polarity);
+    
+    u64 get_polarity;
+    get_64bit_val((__le64*)desc, 24, &get_polarity);
+    u32 ceq_id = FIELD_GET(IRDMA_CQPSQ_CEQ_CEQID, get_polarity);
+    set_64bit_val(cqe_return_buffer, 24, temp);
+    std::cout << " create ceq return buffer addr: "<<return_shadow_buf_addr << logger::endl;
+    desc_complete_indir(0, cqe_return_buffer, 32, return_shadow_buf_addr);
+    dev.cem.qena_updated(ceq_id);
+    cnt++;
   }
   else {
     std::cout << "unhandled opcode is: " << opcode << logger::endl;

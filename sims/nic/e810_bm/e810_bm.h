@@ -36,7 +36,7 @@ extern "C" {
 #include "sims/nic/e810_bm/e810_base_wrapper.h"
 
 #define DEBUG_DEV
-// #define DEBUG_ADMINQ
+#define DEBUG_ADMINQ
 // #define DEBUG_LAN
 // #define DEBUG_HMC
 // #define DEBUG_QUEUES
@@ -973,6 +973,8 @@ class i40e_bm : public nicbm::Runner::Device {
   completion_event_manager cem;
 
   u8 ctx_addr[4][22];
+  int last_used_parent_node = 3;
+  int last_returned_node = 7;
 
 
 

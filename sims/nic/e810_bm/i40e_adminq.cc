@@ -426,41 +426,71 @@ void queue_admin_tx::admin_desc_ctx::process() {
     dev.topo_elem.generic[0].data.elem_type = ICE_AQC_ELEM_TYPE_ROOT_PORT;
     
     dev.topo_elem.generic[1].parent_teid = 0;
-    dev.topo_elem.generic[1].data.elem_type = ICE_AQC_ELEM_TYPE_TC;
-    dev.topo_elem.generic[2].parent_teid = 1;
-    dev.topo_elem.generic[2].data.elem_type = ICE_AQC_ELEM_TYPE_ENTRY_POINT;
-    
-    for (int i = 3; i < 7; i++)
-    {
-      dev.topo_elem.generic[i].parent_teid = i-1;
-      dev.topo_elem.generic[i].data.elem_type = ICE_AQC_ELEM_TYPE_TC;
+    dev.topo_elem.generic[1].data.elem_type = ICE_AQC_ELEM_TYPE_ENTRY_POINT; ;
 
-    }
+    dev.topo_elem.generic[2].parent_teid = 0;
+    dev.topo_elem.generic[2].data.elem_type = ICE_AQC_ELEM_TYPE_SE_GENERIC;
+    
+    dev.topo_elem.generic[3].parent_teid = 1;
+    dev.topo_elem.generic[3].data.elem_type = ICE_AQC_ELEM_TYPE_TC;
+
+    dev.topo_elem.generic[4].parent_teid = 1;
+    dev.topo_elem.generic[4].data.elem_type = ICE_AQC_ELEM_TYPE_TC;
+
+    dev.topo_elem.generic[5].parent_teid = 2;
+    dev.topo_elem.generic[5].data.elem_type = ICE_AQC_ELEM_TYPE_TC;
+
+    dev.topo_elem.generic[6].parent_teid = 2;
+    dev.topo_elem.generic[6].data.elem_type = ICE_AQC_ELEM_TYPE_TC;
 
     desc_complete_indir(0, &dev.topo_elem, sizeof(dev.topo_elem));
   } else if (d->opcode == ice_aqc_opc_get_sched_elems) {
     struct ice_aqc_sched_elem_cmd *get_elem_cmd = reinterpret_cast<ice_aqc_sched_elem_cmd *> (d->params.raw);
     get_elem_cmd->num_elem_resp = 1;
     struct ice_aqc_txsched_elem_data *get_elem = reinterpret_cast<struct ice_aqc_txsched_elem_data*> (data);
-    if (get_elem->node_teid == 0){
+    switch (get_elem->node_teid)
+    {
+    case 0:
       get_elem->parent_teid = 0xFFFFFFFF;
       get_elem->data.elem_type = ICE_AQC_ELEM_TYPE_ROOT_PORT;
-    } else if (get_elem->node_teid == 2) {
-      get_elem->parent_teid = 1;
-      get_elem->data.elem_type = ICE_AQC_ELEM_TYPE_ENTRY_POINT;
-    } else if (get_elem->node_teid == 3){
+      break;
+    case 1:
       get_elem->parent_teid = 0;
+      get_elem->data.elem_type = ICE_AQC_ELEM_TYPE_ENTRY_POINT;
+      break;
+    case 2:
+      get_elem->parent_teid = 0;
+      get_elem->data.elem_type = ICE_AQC_ELEM_TYPE_SE_GENERIC;
+      break;
+    case 3:
+      get_elem->parent_teid = 1;
       get_elem->data.elem_type = ICE_AQC_ELEM_TYPE_TC;
-    } else {
-      get_elem->parent_teid = get_elem->parent_teid +1;
+      break;
+    case 4:
+      get_elem->parent_teid = 1;
       get_elem->data.elem_type = ICE_AQC_ELEM_TYPE_TC;
+      break;
+    case 5:
+      get_elem->parent_teid = 2;
+      get_elem->data.elem_type = ICE_AQC_ELEM_TYPE_TC;
+      break;
+    case 6:
+      get_elem->parent_teid = 2;
+      get_elem->data.elem_type = ICE_AQC_ELEM_TYPE_TC;
+      break;
+    default:
+      cout << "unexpectedly get elems: "<< get_elem->node_teid << logger::endl;
+      break;
     }
+    
+    
     desc_complete_indir(0, get_elem, sizeof(*get_elem));
   } else if (d->opcode == ice_aqc_opc_add_sched_elems) {
     struct ice_aqc_sched_elem_cmd *get_elem_cmd = reinterpret_cast<ice_aqc_sched_elem_cmd *> (d->params.raw);
     get_elem_cmd->num_elem_resp = 1;
     struct ice_aqc_add_elem *add_elem = reinterpret_cast<struct ice_aqc_add_elem*> (data);
-    add_elem->generic[0].node_teid = add_elem->hdr.parent_teid +1;
+    add_elem->generic[0].node_teid = dev.last_returned_node;
+    dev.last_returned_node = dev.last_returned_node + 1;
     desc_complete_indir(0, add_elem, d->datalen);
   } else if (d->opcode == ice_aqc_opc_delete_sched_elems) {
     struct ice_aqc_sched_elem_cmd *delete_elem_cmd = reinterpret_cast<ice_aqc_sched_elem_cmd *> (d->params.raw);
@@ -472,46 +502,55 @@ void queue_admin_tx::admin_desc_ctx::process() {
     query_elem->num_elem_resp = 1;
     struct ice_aqc_query_txsched_res_resp query_res;
     // = reinterpret_cast<struct ice_aqc_query_txsched_res_resp*> (data);
-    query_res.sched_props.logical_levels = 7;
+    query_res.sched_props.logical_levels = 4;
     query_res.sched_props.phys_levels = 3;
-    query_res.layer_props[0].max_sibl_grp_sz = 2;
+    query_res.layer_props[0].max_sibl_grp_sz = 1;
     
-    for (int i = 1; i < 7; i++)
-    {
-      query_res.layer_props[i].max_sibl_grp_sz = 10;
-    }
+    query_res.layer_props[1].max_sibl_grp_sz = 2;
+
+    query_res.layer_props[2].max_sibl_grp_sz = 4;
+    query_res.layer_props[3].max_sibl_grp_sz = 8;
     
     desc_complete_indir(0, &query_res, sizeof(query_res));
   } else if (d->opcode == ice_aqc_opc_add_txqs) {
-    /*
-    proposed schedule tree. Three levels. Four nodes. Node 2 is software entry point. 
-    level -1          0xff
-                       | 
-    level 0            0
-                    /      \
-    level 1       1          3
-                  |
-    level 2       2 
-      ...   
-    */
+    
     struct ice_aqc_add_txqs *add_txqs_cmd = reinterpret_cast<ice_aqc_add_txqs *> (d->params.raw);
     // add_txqs_cmd->num_qgrps = 1;
     struct ice_aqc_add_tx_qgrp *add_txqs = reinterpret_cast<ice_aqc_add_tx_qgrp *> (data);
-    add_txqs->parent_teid = 2;
+    add_txqs->parent_teid = dev.last_used_parent_node;
     add_txqs->num_txqs = 1;
-    // add_txqs->txqs[0].txq_id = 0;
-    add_txqs->txqs[0].q_teid = 10;
-    add_txqs->txqs[0].info.elem_type = ICE_AQC_ELEM_TYPE_SE_GENERIC;
+    add_txqs->txqs[0].q_teid = dev.last_returned_node;
+    add_txqs->txqs[0].info.elem_type = ICE_AQC_ELEM_TYPE_LEAF;
     add_txqs->txqs[0].info.cir_bw.bw_alloc = 100;
     add_txqs->txqs[0].info.eir_bw.bw_alloc = 100;
     if (add_txqs->txqs[0].txq_id >=4){
       cout<< "ice_aqc_opc_add_txqs error. txd id = "<< add_txqs->txqs[0].txq_id << logger::endl;
     }
     memcpy(dev.ctx_addr[add_txqs->txqs[0].txq_id], add_txqs->txqs[0].txq_ctx, sizeof(u8)*22);
-    // dev.regs.qtx_ena[add_txqs->txqs[0].txq_id] = 1 ;
+    // if (dev.last_used_parent_node >=3 || dev.last_used_parent_node<=6){
+    //   dev.last_used_parent_node = dev.last_used_parent_node + 1;
+    // } else {
+    //   dev.last_used_parent_node = 3;
+    // }
+
+    // dev.last_used_parent_node = dev.last_returned_node+1;
     // dev.lanmgr.qena_updated(add_txqs->txqs[0].txq_id, false);
     desc_complete_indir(0, data, d->datalen);
-  }else if (d->opcode == ice_aqc_opc_dis_txqs) {
+  // } else if (d->opcode == ice_aqc_opc_add_rdma_qset) {
+  //   struct ice_aqc_add_rdma_qset *add_txqs_cmd = reinterpret_cast<ice_aqc_add_rdma_qset *> (d->params.raw);
+  //   // add_txqs_cmd->num_qgrps = 1;
+  //   struct ice_aqc_add_rdma_qset_data *add_txqs = reinterpret_cast<ice_aqc_add_rdma_qset_data *> (data);
+  //   add_txqs->parent_teid = dev.last_used_parent_node;
+  //   add_txqs->num_qsets = 1;
+  //   add_txqs->rdma_qsets[0].qset_teid = 0;
+  //   add_txqs->rdma_qsets[0].tx_qset_id = 0;
+    
+  //   memcpy(dev.ctx_addr[add_txqs->rdma_qsets[0].qset_teid], add_txqs->rdma_qsets[0].info, sizeof(u8)*22);
+
+  //   dev.last_used_parent_node = dev.last_returned_node+1;
+  //   // dev.lanmgr.qena_updated(add_txqs->txqs[0].txq_id, false);
+  //   desc_complete_indir(0, data, d->datalen);
+  } else if (d->opcode == ice_aqc_opc_dis_txqs) {
     struct ice_aqc_dis_txqs *dis_txqs_cmd = reinterpret_cast<ice_aqc_dis_txqs *> (d->params.raw);
     struct ice_aqc_dis_txq_item *dis_txqs = reinterpret_cast<ice_aqc_dis_txq_item *> (data);
     dis_txqs->num_qs = 1;
@@ -521,36 +560,6 @@ void queue_admin_tx::admin_desc_ctx::process() {
     struct ice_aqc_download_pkg_resp download_pkg_resp;
     // download_pkg_resp.error_info = ICE_AQ_RC_OK;
     desc_complete_indir(0, &download_pkg_resp, sizeof(download_pkg_resp));
-//   } else if (d->opcode == i40e_aqc_opc_query_vsi_bw_config) {
-// #ifdef DEBUG_ADMINQ
-//     cout <<  "  query vsi bw config" << logger::endl;
-// #endif
-//     struct i40e_aqc_query_vsi_bw_config_resp bwc;
-//     memset(&bwc, 0, sizeof(bwc));
-//     for (size_t i = 0; i < 8; i++)
-//       bwc.qs_handles[i] = 0xffff;
-//     desc_complete_indir(0, &bwc, sizeof(bwc));
-//   } else if (d->opcode == i40e_aqc_opc_query_vsi_ets_sla_config) {
-// #ifdef DEBUG_ADMINQ
-//     cout <<  "  query vsi ets sla config" << logger::endl;
-// #endif
-//     struct i40e_aqc_query_vsi_ets_sla_config_resp sla;
-//     memset(&sla, 0, sizeof(sla));
-//     for (size_t i = 0; i < 8; i++)
-//       sla.share_credits[i] = 127;
-//     desc_complete_indir(0, &sla, sizeof(sla));
-//   } else if (d->opcode == i40e_aqc_opc_remove_macvlan) {
-// #ifdef DEBUG_ADMINQ
-//     cout <<  "  remove macvlan" << logger::endl;
-// #endif
-//     struct i40e_aqc_macvlan *m =
-//         reinterpret_cast<struct i40e_aqc_macvlan *>(d->params.raw);
-//     struct i40e_aqc_remove_macvlan_element_data *rve =
-//         reinterpret_cast<struct i40e_aqc_remove_macvlan_element_data *>(data);
-//     for (uint16_t i = 0; i < m->num_addresses; i++)
-//       rve[i].error_code = I40E_AQC_REMOVE_MACVLAN_SUCCESS;
-
-//     desc_complete_indir(0, data, d->datalen);
   } else if (d->opcode == ice_aqc_opc_add_sw_rules) {
     struct ice_aqc_sw_rules *add_sw_rules_cmd = reinterpret_cast<ice_aqc_sw_rules *> (d->params.raw);
     struct ice_aqc_sw_rules_elem *add_sw_rules = reinterpret_cast<ice_aqc_sw_rules_elem*>(data);
